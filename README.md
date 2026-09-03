@@ -1,3 +1,4 @@
+
 # 🤖 OmniMind AI — Assistant Personnel & Agent Autonome Omnicanal
 
 OmniMind AI est une plateforme d'intelligence artificielle personnelle connectée à **Gmail, WhatsApp, Telegram, Outlook et Discord**. Elle génère des synthèses quotidiennes, extrait les engagements et rendez-vous, et agit comme un agent autonome avec validation humaine (*Human-in-the-Loop*).
@@ -59,3 +60,4 @@ Accédez à l'application sur [http://localhost:3000](http://localhost:3000).
 - Architecture **Zero-Knowledge** : aucun message privé n'est persisté en clair.
 - Approbation **Human-in-the-Loop** obligatoire par défaut avant tout envoi d'email ou modification d'agenda.
 
+=
