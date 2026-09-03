@@ -36,6 +36,10 @@ export async function GET() {
       maskedToken: mask(env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN),
       chatId: env.TELEGRAM_CHAT_ID || process.env.TELEGRAM_CHAT_ID || "",
     },
+    gemini: {
+      isConfigured: Boolean(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY),
+      maskedKey: mask(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY),
+    },
     openai: {
       isConfigured: Boolean(env.OPENAI_API_KEY || process.env.OPENAI_API_KEY),
       maskedKey: mask(env.OPENAI_API_KEY || process.env.OPENAI_API_KEY),
@@ -68,6 +72,7 @@ export async function POST(req: NextRequest) {
     const allowedKeys = [
       "TELEGRAM_BOT_TOKEN",
       "TELEGRAM_CHAT_ID",
+      "GEMINI_API_KEY",
       "OPENAI_API_KEY",
       "GROQ_API_KEY",
       "WHATSAPP_API_TOKEN",

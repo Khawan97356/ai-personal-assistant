@@ -19,14 +19,18 @@ import {
   X,
   Key,
   AlertCircle,
+  Mic,
 } from "lucide-react";
 import { ActionProposal, SummaryReport } from "@/lib/agent/types";
+import JarvisVoiceCompanion from "@/components/JarvisVoiceCompanion";
+import { speakText } from "@/lib/audio/speech";
 
 type TabType = "overview" | "actions" | "briefings" | "accounts" | "settings";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
 
+  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [actions, setActions] = useState<ActionProposal[]>([]);
   const [loadingActions, setLoadingActions] = useState(false);
   const [latestReport, setLatestReport] = useState<SummaryReport | null>(null);
@@ -160,6 +164,8 @@ export default function DashboardPage() {
       if (data.report) {
         setLatestReport(data.report);
         showToast("✨ Briefing exécutif généré avec succès !");
+        const count = data.report.suggestedActions?.length || 0;
+        speakText(`Briefing généré. ${count} recommandations d'actions prêtes pour validation.`, { mode: "robot" });
         fetchActions();
       }
     } catch (err) {
@@ -181,6 +187,9 @@ export default function DashboardPage() {
       const data = await res.json();
       if (data.success) {
         showToast(decision === "approve" ? "✅ Action validée et exécutée !" : "❌ Action annulée.");
+        if (decision === "approve") {
+          speakText("Action validée et exécutée avec succès.", { mode: "robot" });
+        }
         fetchActions();
       }
     } catch (err) {
@@ -318,6 +327,13 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setIsVoiceOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 text-xs font-semibold text-white shadow-md shadow-emerald-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <Mic className="w-3.5 h-3.5 animate-pulse text-emerald-200" />
+            <span>Mode Vocal Jarvis</span>
+          </button>
+          <button
             onClick={triggerBriefing}
             disabled={generatingBriefing}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-xs font-semibold text-white shadow-md shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
@@ -335,6 +351,22 @@ export default function DashboardPage() {
       <div className="flex-1 flex max-w-7xl w-full mx-auto px-4 sm:px-8 py-8 gap-8">
         {/* Left Sidebar Tabs */}
         <aside className="hidden lg:flex flex-col w-64 shrink-0 space-y-1">
+          {/* Bouton Proéminent Vocal Jarvis */}
+          <button
+            onClick={() => setIsVoiceOpen(true)}
+            className="w-full mb-3 flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-indigo-950/70 via-purple-950/50 to-zinc-900 border border-indigo-500/40 text-indigo-200 hover:border-indigo-400 hover:scale-[1.01] text-xs font-bold transition-all shadow-lg shadow-indigo-500/10 cursor-pointer text-left"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-500 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-sm">
+                <Mic className="w-3.5 h-3.5 animate-pulse" />
+              </div>
+              <div>
+                <div className="text-white text-xs font-semibold">Parler à Jarvis</div>
+                <div className="text-[10px] text-emerald-400 font-medium">Réflexion & Voix Live</div>
+              </div>
+            </div>
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          </button>
           {[
             { id: "overview", label: "Vue d'ensemble", icon: LayoutDashboard },
             { id: "actions", label: "Actions 1-Tap", icon: Zap, badge: actions.filter((a) => a.status === "pending_approval").length },
@@ -1117,6 +1149,23 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Action Button pour Jarvis Live (accessible partout) */}
+      <button
+        onClick={() => setIsVoiceOpen(true)}
+        className="fixed bottom-6 right-6 z-40 p-3.5 sm:px-4 sm:py-3 rounded-full bg-gradient-to-r from-emerald-500 via-teal-600 to-indigo-600 text-white shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5 border border-emerald-400/30 cursor-pointer"
+        title="Ouvrir le Mode Vocal Jarvis"
+      >
+        <Mic className="w-5 h-5 animate-pulse" />
+        <span className="hidden sm:inline text-xs font-bold tracking-tight">Parler à Jarvis</span>
+      </button>
+
+      {/* Modal Compagnon Vocal Jarvis */}
+      <JarvisVoiceCompanion
+        isOpen={isVoiceOpen}
+        onClose={() => setIsVoiceOpen(false)}
+        onActionExecuted={fetchActions}
+      />
     </div>
   );
 }
