@@ -1,0 +1,270 @@
+{
+  "actions": [
+    {
+      "id": "act_1788463735510_70z0c",
+      "type": "send_email",
+      "channel": "gmail",
+      "title": "Envoyer confirmation de signature au Cabinet Lamy",
+      "description": "Préparer l'email confirmant que l'avenant sera retourné signé aujourd'hui.",
+      "status": "executed",
+      "createdAt": "2026-09-03T19:28:55.510Z",
+      "payload": {
+        "to": "cabinet@lamy-associes.com",
+        "subject": "RE: Avenant Contrat SaaS - Signature en cours",
+        "body": "Bonjour Maître,\n\nBien reçu. L'avenant est actuellement en cours de signature électronique et vous sera renvoyé avant 18h.\n\nBien cordialement,\nThomas"
+      }
+    },
+    {
+      "id": "act_1788463735509_x81cb",
+      "type": "schedule_event",
+      "channel": "gmail",
+      "title": "Mise à jour Réunion Sync (16h30)",
+      "description": "Mettre à jour l'événement Google Calendar pour 16h30 et avertir les participants.",
+      "status": "executed",
+      "createdAt": "2026-09-03T19:28:55.509Z",
+      "payload": {
+        "summary": "Point Sync Équipe",
+        "eventStart": "2026-09-03T20:28:55.509Z",
+        "eventEnd": "2026-09-03T21:28:55.509Z"
+      }
+    },
+    {
+      "id": "act_1788456059296_9ae2k",
+      "type": "send_email",
+      "channel": "gmail",
+      "title": "Envoyer confirmation de signature au Cabinet Lamy",
+      "description": "Préparer l'email confirmant que l'avenant sera retourné signé aujourd'hui.",
+      "status": "executed",
+      "createdAt": "2026-09-03T17:20:59.296Z",
+      "payload": {
+        "to": "cabinet@lamy-associes.com",
+        "subject": "RE: Avenant Contrat SaaS - Signature en cours",
+        "body": "Bonjour Maître,\n\nBien reçu. L'avenant est actuellement en cours de signature électronique et vous sera renvoyé avant 18h.\n\nBien cordialement,\nThomas"
+      }
+    },
+    {
+      "id": "act_1788456059296_d8opw",
+      "type": "schedule_event",
+      "channel": "gmail",
+      "title": "Mise à jour Réunion Sync (16h30)",
+      "description": "Mettre à jour l'événement Google Calendar pour 16h30 et avertir les participants.",
+      "status": "executed",
+      "createdAt": "2026-09-03T17:20:59.296Z",
+      "payload": {
+        "summary": "Point Sync Équipe",
+        "eventStart": "2026-09-03T18:20:59.296Z",
+        "eventEnd": "2026-09-03T19:20:59.296Z"
+      }
+    },
+    {
+      "id": "act_init_1",
+      "type": "schedule_event",
+      "channel": "gmail",
+      "title": "Mise à jour Réunion Sync (16h30)",
+      "description": "Mettre à jour l'événement Google Calendar pour 16h30 et avertir les participants.",
+      "status": "rejected",
+      "createdAt": "2026-09-03T17:20:19.457Z",
+      "payload": {
+        "summary": "Point Sync Équipe",
+        "eventStart": "2026-09-03T18:20:19.457Z",
+        "eventEnd": "2026-09-03T19:20:19.457Z"
+      }
+    },
+    {
+      "id": "act_init_2",
+      "type": "send_email",
+      "channel": "gmail",
+      "title": "Envoyer confirmation de signature au Cabinet Lamy",
+      "description": "Préparer l'email confirmant que l'avenant sera retourné signé aujourd'hui.",
+      "status": "rejected",
+      "createdAt": "2026-09-03T17:20:19.457Z",
+      "payload": {
+        "to": "cabinet@lamy-associes.com",
+        "subject": "RE: Avenant Contrat SaaS - Signature en cours",
+        "body": "Bonjour Maître,\n\nBien reçu. L'avenant est actuellement en cours de signature électronique et vous sera renvoyé avant 18h.\n\nBien cordialement,\nThomas"
+      }
+    }
+  ],
+  "briefings": [
+    {
+      "id": "rep_1788463735510",
+      "generatedAt": "2026-09-03T19:28:55.510Z",
+      "period": "instant",
+      "totalMessagesAnalyzed": 3,
+      "criticalPoints": [
+        "3 message(s) analysé(s) : Avenant juridique Grand Compte prioritaire.",
+        "Sprint Tech validé : mise en production confirmée sans régression."
+      ],
+      "decisionsTaken": [
+        "Point d'avancement hebdomadaire décalé de 15h00 à 16h30 à la demande de l'équipe produit."
+      ],
+      "pendingTasks": [
+        {
+          "title": "Signer l'avenant juridique",
+          "description": "Reçu par email du cabinet Lamy",
+          "dateTime": "2026-09-04T19:28:55.509Z",
+          "isImplicit": false
+        }
+      ],
+      "suggestedActions": [
+        {
+          "id": "act_1788463735509_x81cb",
+          "type": "schedule_event",
+          "channel": "gmail",
+          "title": "Mise à jour Réunion Sync (16h30)",
+          "description": "Mettre à jour l'événement Google Calendar pour 16h30 et avertir les participants.",
+          "status": "executed",
+          "createdAt": "2026-09-03T19:28:55.509Z",
+          "payload": {
+            "summary": "Point Sync Équipe",
+            "eventStart": "2026-09-03T20:28:55.509Z",
+            "eventEnd": "2026-09-03T21:28:55.509Z"
+          }
+        },
+        {
+          "id": "act_1788463735510_70z0c",
+          "type": "send_email",
+          "channel": "gmail",
+          "title": "Envoyer confirmation de signature au Cabinet Lamy",
+          "description": "Préparer l'email confirmant que l'avenant sera retourné signé aujourd'hui.",
+          "status": "executed",
+          "createdAt": "2026-09-03T19:28:55.510Z",
+          "payload": {
+            "to": "cabinet@lamy-associes.com",
+            "subject": "RE: Avenant Contrat SaaS - Signature en cours",
+            "body": "Bonjour Maître,\n\nBien reçu. L'avenant est actuellement en cours de signature électronique et vous sera renvoyé avant 18h.\n\nBien cordialement,\nThomas"
+          }
+        }
+      ],
+      "summaryMarkdown": "☀️ *Briefing Matinal OmniMind*\n\n*Urgences & Priorités :*\n• Avenant juridique à valider avant 18h (Cabinet Lamy).\n• Point sync décalé à 16h30 (WhatsApp validé).\n\n*Actions préparées prêtes à valider ci-dessous :*"
+    },
+    {
+      "id": "rep_1788456059297",
+      "generatedAt": "2026-09-03T17:20:59.297Z",
+      "period": "instant",
+      "totalMessagesAnalyzed": 3,
+      "criticalPoints": [
+        "3 message(s) analysé(s) : Avenant juridique Grand Compte prioritaire.",
+        "Sprint Tech validé : mise en production confirmée sans régression."
+      ],
+      "decisionsTaken": [
+        "Point d'avancement hebdomadaire décalé de 15h00 à 16h30 à la demande de l'équipe produit."
+      ],
+      "pendingTasks": [
+        {
+          "title": "Signer l'avenant juridique",
+          "description": "Reçu par email du cabinet Lamy",
+          "dateTime": "2026-09-04T17:20:59.296Z",
+          "isImplicit": false
+        }
+      ],
+      "suggestedActions": [
+        {
+          "id": "act_1788456059296_d8opw",
+          "type": "schedule_event",
+          "channel": "gmail",
+          "title": "Mise à jour Réunion Sync (16h30)",
+          "description": "Mettre à jour l'événement Google Calendar pour 16h30 et avertir les participants.",
+          "status": "executed",
+          "createdAt": "2026-09-03T17:20:59.296Z",
+          "payload": {
+            "summary": "Point Sync Équipe",
+            "eventStart": "2026-09-03T18:20:59.296Z",
+            "eventEnd": "2026-09-03T19:20:59.296Z"
+          }
+        },
+        {
+          "id": "act_1788456059296_9ae2k",
+          "type": "send_email",
+          "channel": "gmail",
+          "title": "Envoyer confirmation de signature au Cabinet Lamy",
+          "description": "Préparer l'email confirmant que l'avenant sera retourné signé aujourd'hui.",
+          "status": "executed",
+          "createdAt": "2026-09-03T17:20:59.296Z",
+          "payload": {
+            "to": "cabinet@lamy-associes.com",
+            "subject": "RE: Avenant Contrat SaaS - Signature en cours",
+            "body": "Bonjour Maître,\n\nBien reçu. L'avenant est actuellement en cours de signature électronique et vous sera renvoyé avant 18h.\n\nBien cordialement,\nThomas"
+          }
+        }
+      ],
+      "summaryMarkdown": "☀️ *Briefing Matinal OmniMind*\n\n*Urgences & Priorités :*\n• Avenant juridique à valider avant 18h (Cabinet Lamy).\n• Point sync décalé à 16h30 (WhatsApp validé).\n\n*Actions préparées prêtes à valider ci-dessous :*"
+    }
+  ],
+  "accounts": [
+    {
+      "id": "gmail",
+      "name": "Gmail & Google Workspace",
+      "channel": "gmail",
+      "type": "Email & Agenda",
+      "status": "connected",
+      "identifier": "thomas.dev@gmail.com",
+      "unreadCount": 8,
+      "lastSyncAt": "2026-09-03T17:20:19.457Z",
+      "iconColor": "text-red-400",
+      "bgColor": "bg-red-500/10 border-red-500/20"
+    },
+    {
+      "id": "whatsapp",
+      "name": "WhatsApp Business Cloud",
+      "channel": "whatsapp",
+      "type": "Messagerie Instantanée",
+      "status": "connected",
+      "identifier": "+33 6 12 34 56 78",
+      "unreadCount": 14,
+      "lastSyncAt": "2026-09-03T17:20:19.457Z",
+      "iconColor": "text-emerald-400",
+      "bgColor": "bg-emerald-500/10 border-emerald-500/20"
+    },
+    {
+      "id": "telegram",
+      "name": "Telegram Bot Privé",
+      "channel": "telegram",
+      "type": "Commandes Rapides",
+      "status": "connected",
+      "identifier": "@OmniMindThomasBot",
+      "unreadCount": 3,
+      "lastSyncAt": "2026-09-03T17:20:19.457Z",
+      "iconColor": "text-sky-400",
+      "bgColor": "bg-sky-500/10 border-sky-500/20"
+    },
+    {
+      "id": "outlook",
+      "name": "Outlook / Microsoft 365",
+      "channel": "outlook",
+      "type": "Email Pro",
+      "status": "disconnected",
+      "identifier": "Non connecté",
+      "unreadCount": 0,
+      "lastSyncAt": "2026-09-03T17:20:19.457Z",
+      "iconColor": "text-blue-400",
+      "bgColor": "bg-blue-500/10 border-blue-500/20"
+    },
+    {
+      "id": "discord",
+      "name": "Discord Bot & Webhook",
+      "channel": "discord",
+      "type": "Communautés & Serveurs",
+      "status": "connected",
+      "identifier": "Serveur Tech Scale",
+      "unreadCount": 22,
+      "lastSyncAt": "2026-09-03T17:20:19.457Z",
+      "iconColor": "text-indigo-400",
+      "bgColor": "bg-indigo-500/10 border-indigo-500/20"
+    }
+  ],
+  "settings": {
+    "userName": "Thomas",
+    "userEmail": "thomas.dev@gmail.com",
+    "userPhone": "+33612345678",
+    "preferredBriefingChannel": "telegram",
+    "morningBriefingTime": "08:00",
+    "eveningBriefingTime": "19:00",
+    "requireApprovalBeforeSending": true,
+    "vipContacts": [
+      "cabinet@lamy-associes.com",
+      "+33600000001",
+      "investisseurs@seed.vc"
+    ]
+  }
+}
