@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Sparkles, Menu, X, ArrowRight } from "lucide-react";
+import { Sparkles, Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -77,13 +77,6 @@ export default function Navbar() {
             >
               Tarifs
             </Link>
-            <Link
-              href="/dashboard"
-              className="text-sm font-medium text-indigo-300 hover:text-white transition-colors duration-200 flex items-center gap-1"
-            >
-              <span>Console</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Live</span>
-            </Link>
           </nav>
 
           {/* Right Action Buttons */}
@@ -93,17 +86,10 @@ export default function Navbar() {
               <span>Agents Actifs 24/7</span>
             </div>
             <Link
-              href="/dashboard"
-              className="text-sm font-medium text-zinc-300 hover:text-white transition-colors"
+              href="/login"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
             >
-              Console
-            </Link>
-            <Link
-              href="/dashboard"
-              className="relative group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 text-sm font-semibold text-white shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-            >
-              <span>Ouvrir la Console</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              Connexion
             </Link>
           </div>
 
@@ -157,29 +143,15 @@ export default function Navbar() {
             >
               Tarifs
             </Link>
-            <Link
-              href="/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-base font-semibold text-indigo-400 hover:text-white py-1"
-            >
-              Console Agent
-            </Link>
           </nav>
 
           <div className="pt-4 border-t border-zinc-800 flex flex-col gap-3">
             <Link
-              href="/dashboard"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full text-center py-2.5 rounded-xl border border-zinc-700 text-sm font-medium text-zinc-200 hover:bg-zinc-800/60"
-            >
-              Console
-            </Link>
-            <Link
-              href="/dashboard"
+              href="/login"
               onClick={() => setMobileMenuOpen(false)}
               className="w-full text-center py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-sm font-semibold text-white shadow-lg shadow-indigo-600/30"
             >
-              Ouvrir la Console
+              Connexion
             </Link>
           </div>
         </div>

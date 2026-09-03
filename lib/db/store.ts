@@ -15,7 +15,20 @@ export interface ConnectedAccountRecord {
   bgColor: string;
 }
 
+export interface UserRecord {
+  id: string;
+  email: string;
+  name: string;
+  verified: boolean;
+  verificationToken?: string;
+  verificationCode?: string;
+  tokenExpiresAt?: string;
+  createdAt: string;
+  lastLoginAt?: string;
+}
+
 export interface DatabaseSchema {
+  users?: UserRecord[];
   actions: ActionProposal[];
   briefings: SummaryReport[];
   accounts: ConnectedAccountRecord[];
@@ -27,6 +40,7 @@ const DB_FILE = path.join(DATA_DIR, "db.json");
 
 // Données initiales par défaut
 const DEFAULT_DB: DatabaseSchema = {
+  users: [],
   actions: [
     {
       id: "act_init_1",
@@ -243,6 +257,88 @@ class JsonDatabase {
       db.settings = { ...db.settings, ...updates };
       this.write(db);
       return db.settings;
+    },
+  };
+
+  // --- USERS REPOSITORY ---
+  public users = {
+    getAll: (): UserRecord[] => {
+      const data = this.read();
+      return data.users || [];
+    },
+    getById: (id: string): UserRecord | undefined => {
+      const users = this.read().users || [];
+      return users.find((u) => u.id === id);
+    },
+    getByEmail: (email: string): UserRecord | undefined => {
+      const users = this.read().users || [];
+      const normalized = email.toLowerCase().trim();
+      return users.find((u) => u.email.toLowerCase() === normalized);
+    },
+    getByToken: (token: string): UserRecord | undefined => {
+      const users = this.read().users || [];
+      return users.find((u) => u.verificationToken === token.trim());
+    },
+    getByCode: (email: string, code: string): UserRecord | undefined => {
+      const users = this.read().users || [];
+      const normalized = email.toLowerCase().trim();
+      return users.find(
+        (u) =>
+          u.email.toLowerCase() === normalized &&
+          u.verificationCode === code.trim()
+      );
+    },
+    createOrUpdateVerification: (
+      email: string,
+      name: string,
+      token: string,
+      code: string,
+      expiresAt: string
+    ): UserRecord => {
+      const db = this.read();
+      if (!db.users) db.users = [];
+      const normalized = email.toLowerCase().trim();
+      let user = db.users.find((u) => u.email.toLowerCase() === normalized);
+
+      if (user) {
+        user.name = name.trim() || user.name;
+        user.verificationToken = token;
+        user.verificationCode = code;
+        user.tokenExpiresAt = expiresAt;
+      } else {
+        user = {
+          id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          email: normalized,
+          name: name.trim() || normalized.split("@")[0],
+          verified: false,
+          verificationToken: token,
+          verificationCode: code,
+          tokenExpiresAt: expiresAt,
+          createdAt: new Date().toISOString(),
+        };
+        db.users.push(user);
+      }
+      this.write(db);
+      return user;
+    },
+    verifyUser: (id: string): UserRecord | null => {
+      const db = this.read();
+      if (!db.users) db.users = [];
+      const user = db.users.find((u) => u.id === id);
+      if (user) {
+        user.verified = true;
+        user.verificationToken = undefined;
+        user.verificationCode = undefined;
+        user.lastLoginAt = new Date().toISOString();
+
+        // Mettre à jour automatiquement le profil exécutif actif
+        db.settings.userName = user.name;
+        db.settings.userEmail = user.email;
+
+        this.write(db);
+        return user;
+      }
+      return null;
     },
   };
 }

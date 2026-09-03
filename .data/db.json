@@ -254,8 +254,8 @@
     }
   ],
   "settings": {
-    "userName": "Thomas",
-    "userEmail": "thomas.dev@gmail.com",
+    "userName": "yanis",
+    "userEmail": "willis.palmot@gmail.com",
     "userPhone": "+33612345678",
     "preferredBriefingChannel": "telegram",
     "morningBriefingTime": "08:00",
@@ -266,5 +266,25 @@
       "+33600000001",
       "investisseurs@seed.vc"
     ]
-  }
+  },
+  "users": [
+    {
+      "id": "usr_1788470657022_7tks",
+      "email": "test.user@example.com",
+      "name": "Alex",
+      "verified": true,
+      "tokenExpiresAt": "2026-09-03T21:39:17.022Z",
+      "createdAt": "2026-09-03T21:24:17.022Z",
+      "lastLoginAt": "2026-09-03T21:24:32.068Z"
+    },
+    {
+      "id": "usr_1788470885519_u1ha",
+      "email": "willis.palmot@gmail.com",
+      "name": "yanis",
+      "verified": true,
+      "tokenExpiresAt": "2026-09-03T21:46:49.499Z",
+      "createdAt": "2026-09-03T21:28:05.519Z",
+      "lastLoginAt": "2026-09-03T21:31:52.000Z"
+    }
+  ]
 }

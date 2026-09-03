@@ -20,6 +20,8 @@ import {
   Key,
   AlertCircle,
   Mic,
+  LogOut,
+  User,
 } from "lucide-react";
 import { ActionProposal, SummaryReport } from "@/lib/agent/types";
 import JarvisVoiceCompanion from "@/components/JarvisVoiceCompanion";
@@ -29,6 +31,14 @@ type TabType = "overview" | "actions" | "briefings" | "accounts" | "settings";
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
+
+  // Utilisateur connecté en temps réel
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+  } | null>(null);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [actions, setActions] = useState<ActionProposal[]>([]);
@@ -137,6 +147,23 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let isMounted = true;
+
+    // Charger l'utilisateur connecté
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.authenticated && data.user) {
+          setCurrentUser(data.user);
+          setSettings((prev) => ({
+            ...prev,
+            userName: data.user.name,
+            userEmail: data.user.email,
+          }));
+        }
+      })
+      .catch(() => {});
+
+    // Charger les actions
     fetch("/api/agent/actions")
       .then((res) => res.json())
       .then((data) => {
@@ -150,6 +177,18 @@ export default function DashboardPage() {
       isMounted = false;
     };
   }, []);
+
+  // Déconnexion
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setCurrentUser(null);
+      showToast("Déconnexion réussie.");
+      window.location.href = "/login";
+    } catch (err) {
+      console.error("Erreur déconnexion:", err);
+    }
+  };
 
   // Déclencher un briefing en direct
   const triggerBriefing = async () => {
@@ -341,8 +380,57 @@ export default function DashboardPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${generatingBriefing ? "animate-spin" : ""}`} />
             <span>{generatingBriefing ? "Génération..." : "Générer Briefing"}</span>
           </button>
-          <div className="w-8 h-8 rounded-full bg-indigo-950 border border-indigo-500/30 text-indigo-300 flex items-center justify-center text-xs font-bold">
-            TH
+          {/* User Profile Avatar & Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+              className="w-8 h-8 rounded-full bg-indigo-950 border border-indigo-500/40 text-indigo-200 hover:border-indigo-400 flex items-center justify-center text-xs font-bold shadow-md transition-all cursor-pointer"
+              title={currentUser ? `Connecté : ${currentUser.name} (${currentUser.email})` : "Gérer mon compte"}
+            >
+              {currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : "TH"}
+            </button>
+
+            {userDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-zinc-950 border border-zinc-800 shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95">
+                {currentUser ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-800">
+                      <div className="w-9 h-9 rounded-full bg-indigo-600/30 border border-indigo-500/50 text-indigo-300 flex items-center justify-center font-bold text-xs">
+                        {currentUser.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white truncate">{currentUser.name}</div>
+                        <div className="text-[10px] text-zinc-400 truncate">{currentUser.email}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Compte vérifié par email</span>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full mt-2 py-2 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-300 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Se déconnecter</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 text-center">
+                    <p className="text-xs text-zinc-300 font-medium">Mode Démo Invité</p>
+                    <p className="text-[11px] text-zinc-400">
+                      Créez votre compte réel avec confirmation par email pour sécuriser vos données.
+                    </p>
+                    <Link
+                      href="/login"
+                      className="inline-flex items-center justify-center w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition-colors"
+                    >
+                      Créer ou Connecter mon Compte
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
