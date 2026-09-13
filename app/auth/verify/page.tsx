@@ -13,13 +13,17 @@ function VerifyContent() {
   const token = searchParams.get("token");
   const email = searchParams.get("email");
 
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
-  const [message, setMessage] = useState<string>("Validation de votre lien d'accès sécurisé...");
+  const [status, setStatus] = useState<"loading" | "success" | "error">(() =>
+    !token ? "error" : "loading"
+  );
+  const [message, setMessage] = useState<string>(() =>
+    !token
+      ? "Lien de confirmation manquant ou invalide."
+      : "Validation de votre lien d'accès sécurisé..."
+  );
 
   useEffect(() => {
     if (!token) {
-      setStatus("error");
-      setMessage("Lien de confirmation manquant ou invalide.");
       return;
     }
 

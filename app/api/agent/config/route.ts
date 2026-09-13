@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { requireAuth } from "@/lib/auth/session";
 
 const ENV_LOCAL_PATH = path.join(process.cwd(), ".env.local");
 
@@ -27,7 +28,10 @@ function mask(value?: string): string {
   return `${value.substring(0, 4)}••••${value.substring(value.length - 4)}`;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth.errorResponse) return auth.errorResponse;
+
   const env = readEnvConfig();
 
   return NextResponse.json({
@@ -64,6 +68,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth.errorResponse) return auth.errorResponse;
+
   try {
     const body = await req.json();
     const current = readEnvConfig();

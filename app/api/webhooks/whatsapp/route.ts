@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { whatsAppChannel } from "@/lib/agent/channels/whatsapp";
 import { omniAgent } from "@/lib/agent/core";
+import { transcribeAudio } from "@/lib/agent/audio";
 
 // 1. Validation de l'URL par Meta WhatsApp Cloud (GET)
 export async function GET(req: NextRequest) {
@@ -51,8 +52,26 @@ export async function POST(req: NextRequest) {
     if (message.type === "audio") {
       await whatsAppChannel.sendMessage(
         from,
-        "🎙️ Vocal bien reçu. OmniMind prépare la transcription et extrait vos actions..."
+        "🎙️ Vocal bien reçu. Téléchargement et transcription en cours..."
       );
+
+      let audioBuffer: Buffer | null = null;
+      if (message.audio?.id) {
+        audioBuffer = await whatsAppChannel.downloadMediaBuffer(message.audio.id);
+      }
+
+      if (audioBuffer) {
+        try {
+          const transcription = await transcribeAudio(audioBuffer, "whatsapp_voice.ogg");
+          await whatsAppChannel.sendMessage(
+            from,
+            `📝 *Transcription OmniMind :*\n"${transcription.text}"\n\n⚡ *Statut :* Actions et rappels analysés.`
+          );
+        } catch (err) {
+          console.error("WhatsApp transcription error:", err);
+        }
+      }
+
       return NextResponse.json({ status: "ok" });
     }
 

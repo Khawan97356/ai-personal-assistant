@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { ActionProposal, SummaryReport, UserPreferences, ChannelType } from "@/lib/agent/types";
+import { ActionProposal, SummaryReport, UserPreferences, ChannelType, UserMemory } from "@/lib/agent/types";
 
 export interface ConnectedAccountRecord {
   id: string;
+  userId?: string;
   name: string;
   channel: ChannelType;
   type: string;
@@ -33,6 +34,8 @@ export interface DatabaseSchema {
   briefings: SummaryReport[];
   accounts: ConnectedAccountRecord[];
   settings: UserPreferences;
+  userSettings?: Record<string, UserPreferences>;
+  memories?: UserMemory[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -144,6 +147,23 @@ const DEFAULT_DB: DatabaseSchema = {
     requireApprovalBeforeSending: true,
     vipContacts: ["cabinet@lamy-associes.com", "+33600000001", "investisseurs@seed.vc"],
   },
+  userSettings: {},
+  memories: [
+    {
+      id: "mem_init_1",
+      userId: "usr_dev_admin",
+      category: "constraint",
+      fact: "Pas de rendez-vous ni de réunions client le vendredi après 16h.",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "mem_init_2",
+      userId: "usr_dev_admin",
+      category: "vip_relation",
+      fact: "Cabinet Lamy est le conseil juridique prioritaire. Traiter leurs demandes sous 4h.",
+      createdAt: new Date().toISOString(),
+    },
+  ],
 };
 
 class JsonDatabase {
@@ -169,6 +189,12 @@ class JsonDatabase {
       if (fs.existsSync(DB_FILE)) {
         const content = fs.readFileSync(DB_FILE, "utf-8");
         this.inMemory = JSON.parse(content);
+        if (!this.inMemory!.memories) {
+          this.inMemory!.memories = DEFAULT_DB.memories;
+        }
+        if (!this.inMemory!.userSettings) {
+          this.inMemory!.userSettings = {};
+        }
         return this.inMemory!;
       }
     } catch (err) {
@@ -187,23 +213,34 @@ class JsonDatabase {
     }
   }
 
-  // --- ACTIONS REPOSITORY ---
+  // --- ACTIONS REPOSITORY (Multi-tenant) ---
   public actions = {
-    getAll: (): ActionProposal[] => {
-      return this.read().actions;
+    getAll: (userId?: string): ActionProposal[] => {
+      const actions = this.read().actions;
+      if (!userId) return actions;
+      return actions.filter((a) => !a.userId || a.userId === userId);
     },
-    getById: (id: string): ActionProposal | undefined => {
-      return this.read().actions.find((a) => a.id === id);
+    getById: (id: string, userId?: string): ActionProposal | undefined => {
+      return this.read().actions.find(
+        (a) => a.id === id && (!userId || !a.userId || a.userId === userId)
+      );
     },
-    add: (action: ActionProposal): ActionProposal => {
+    add: (action: ActionProposal, userId?: string): ActionProposal => {
       const db = this.read();
+      if (userId) action.userId = userId;
       db.actions.unshift(action);
       this.write(db);
       return action;
     },
-    updateStatus: (id: string, status: ActionProposal["status"]): ActionProposal | null => {
+    updateStatus: (
+      id: string,
+      status: ActionProposal["status"],
+      userId?: string
+    ): ActionProposal | null => {
       const db = this.read();
-      const action = db.actions.find((a) => a.id === id);
+      const action = db.actions.find(
+        (a) => a.id === id && (!userId || !a.userId || a.userId === userId)
+      );
       if (action) {
         action.status = status;
         this.write(db);
@@ -213,31 +250,38 @@ class JsonDatabase {
     },
   };
 
-  // --- BRIEFINGS REPOSITORY ---
+  // --- BRIEFINGS REPOSITORY (Multi-tenant) ---
   public briefings = {
-    getAll: (): SummaryReport[] => {
-      return this.read().briefings;
-    },
-    getLatest: (): SummaryReport | null => {
+    getAll: (userId?: string): SummaryReport[] => {
       const briefings = this.read().briefings;
+      if (!userId) return briefings;
+      return briefings.filter((b) => !b.userId || b.userId === userId);
+    },
+    getLatest: (userId?: string): SummaryReport | null => {
+      const briefings = this.briefings.getAll(userId);
       return briefings.length > 0 ? briefings[0] : null;
     },
-    add: (report: SummaryReport): SummaryReport => {
+    add: (report: SummaryReport, userId?: string): SummaryReport => {
       const db = this.read();
+      if (userId) report.userId = userId;
       db.briefings.unshift(report);
       this.write(db);
       return report;
     },
   };
 
-  // --- ACCOUNTS REPOSITORY ---
+  // --- ACCOUNTS REPOSITORY (Multi-tenant) ---
   public accounts = {
-    getAll: (): ConnectedAccountRecord[] => {
-      return this.read().accounts;
+    getAll: (userId?: string): ConnectedAccountRecord[] => {
+      const accounts = this.read().accounts;
+      if (!userId) return accounts;
+      return accounts.filter((a) => !a.userId || a.userId === userId);
     },
-    toggleStatus: (id: string): ConnectedAccountRecord | null => {
+    toggleStatus: (id: string, userId?: string): ConnectedAccountRecord | null => {
       const db = this.read();
-      const account = db.accounts.find((a) => a.id === id);
+      const account = db.accounts.find(
+        (a) => a.id === id && (!userId || !a.userId || a.userId === userId)
+      );
       if (account) {
         account.status = account.status === "connected" ? "disconnected" : "connected";
         this.write(db);
@@ -247,16 +291,76 @@ class JsonDatabase {
     },
   };
 
-  // --- SETTINGS REPOSITORY ---
+  // --- SETTINGS REPOSITORY (Multi-tenant) ---
   public settings = {
-    get: (): UserPreferences => {
-      return this.read().settings;
-    },
-    update: (updates: Partial<UserPreferences>): UserPreferences => {
+    get: (userId?: string): UserPreferences => {
       const db = this.read();
+      if (userId && db.userSettings && db.userSettings[userId]) {
+        return db.userSettings[userId];
+      }
+      return db.settings;
+    },
+    update: (updates: Partial<UserPreferences>, userId?: string): UserPreferences => {
+      const db = this.read();
+      if (userId) {
+        if (!db.userSettings) db.userSettings = {};
+        const current = db.userSettings[userId] || { ...db.settings, userId };
+        db.userSettings[userId] = { ...current, ...updates };
+        this.write(db);
+        return db.userSettings[userId];
+      }
       db.settings = { ...db.settings, ...updates };
       this.write(db);
       return db.settings;
+    },
+  };
+
+  // --- MEMORIES REPOSITORY (Long-Term Memory / RAG) ---
+  public memories = {
+    getAll: (userId?: string): UserMemory[] => {
+      const db = this.read();
+      const all = db.memories || [];
+      if (!userId) return all;
+      return all.filter((m) => !m.userId || m.userId === userId);
+    },
+    add: (memory: {
+      userId: string;
+      fact: string;
+      category?: UserMemory["category"];
+    }): UserMemory => {
+      const db = this.read();
+      if (!db.memories) db.memories = [];
+      const newMemory: UserMemory = {
+        id: `mem_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: memory.userId,
+        fact: memory.fact.trim(),
+        category: memory.category || "preference",
+        createdAt: new Date().toISOString(),
+      };
+      db.memories.unshift(newMemory);
+      this.write(db);
+      return newMemory;
+    },
+    delete: (id: string, userId?: string): boolean => {
+      const db = this.read();
+      if (!db.memories) return false;
+      const initialCount = db.memories.length;
+      db.memories = db.memories.filter(
+        (m) => !(m.id === id && (!userId || m.userId === userId))
+      );
+      this.write(db);
+      return db.memories.length < initialCount;
+    },
+    search: (query: string, userId?: string): UserMemory[] => {
+      const list = this.memories.getAll(userId);
+      const terms = query
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length > 2);
+      if (terms.length === 0) return list.slice(0, 5);
+      return list
+        .filter((m) => terms.some((t) => m.fact.toLowerCase().includes(t)))
+        .slice(0, 5);
     },
   };
 

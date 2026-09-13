@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/agent/briefing?period=morning",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/agent/briefing?period=evening",
+      "schedule": "0 19 * * *"
+    }
+  ]
+}

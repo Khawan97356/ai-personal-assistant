@@ -120,6 +120,43 @@ export class TelegramChannel {
       return false;
     }
   }
+
+  /**
+   * Récupère le chemin d'un fichier via l'API Telegram
+   */
+  public async getFile(fileId: string): Promise<{ filePath: string; fileUrl: string } | null> {
+    if (!this.isConfigured()) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/getFile?file_id=${fileId}`);
+      const data = await res.json();
+      if (data.ok && data.result?.file_path) {
+        const filePath = data.result.file_path;
+        const fileUrl = `https://api.telegram.org/file/bot${this.botToken}/${filePath}`;
+        return { filePath, fileUrl };
+      }
+      return null;
+    } catch (err) {
+      console.error("Telegram getFile error:", err);
+      return null;
+    }
+  }
+
+  /**
+   * Télécharge le contenu binaire d'un fichier Telegram (ex: note vocale OGG)
+   */
+  public async downloadFileBuffer(fileId: string): Promise<Buffer | null> {
+    const fileInfo = await this.getFile(fileId);
+    if (!fileInfo) return null;
+    try {
+      const res = await fetch(fileInfo.fileUrl);
+      if (!res.ok) return null;
+      const arrayBuf = await res.arrayBuffer();
+      return Buffer.from(arrayBuf);
+    } catch (err) {
+      console.error("Telegram downloadFileBuffer error:", err);
+      return null;
+    }
+  }
 }
 
 export const telegramChannel = new TelegramChannel();

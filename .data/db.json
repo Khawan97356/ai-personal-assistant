@@ -362,9 +362,11 @@
       "email": "willis.palmot@gmail.com",
       "name": "khawan",
       "verified": true,
-      "tokenExpiresAt": "2026-09-03T22:39:06.114Z",
+      "tokenExpiresAt": "2026-09-05T23:04:58.498Z",
       "createdAt": "2026-09-03T21:28:05.519Z",
-      "lastLoginAt": "2026-09-03T22:25:01.079Z"
+      "lastLoginAt": "2026-09-03T22:25:01.079Z",
+      "verificationToken": "253f172df3c041d38b135110f1e9875d2f99494ef2543a1b",
+      "verificationCode": "559829"
     }
   ]
 }

@@ -1,3 +1,5 @@
+import { IncomingMessage } from "@/lib/agent/types";
+
 /**
  * Connecteur Gmail & Google Calendar pour OmniMind.
  * Permet d'extraire les emails non lus, de préparer des brouillons et de planifier des réunions.
@@ -95,6 +97,76 @@ export class GmailAndCalendarChannel {
     } catch (err) {
       console.error("Google Calendar schedule error:", err);
       return { eventId: "", success: false };
+    }
+  }
+
+  /**
+   * Récupère les emails non lus de la boîte Gmail
+   */
+  public async fetchUnreadMessages(maxResults: number = 10): Promise<IncomingMessage[]> {
+    if (!this.isConfigured()) {
+      return [];
+    }
+
+    try {
+      const listRes = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread&maxResults=${maxResults}`,
+        {
+          headers: { Authorization: `Bearer ${this.accessToken}` },
+        }
+      );
+      const listData = await listRes.json();
+      if (!listData.messages || !Array.isArray(listData.messages)) {
+        return [];
+      }
+
+      const results: IncomingMessage[] = [];
+      for (const item of listData.messages.slice(0, maxResults)) {
+        try {
+          const msgRes = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${item.id}?format=full`,
+            {
+              headers: { Authorization: `Bearer ${this.accessToken}` },
+            }
+          );
+          const msgData = await msgRes.json();
+          const headers: Array<{ name: string; value: string }> = msgData.payload?.headers || [];
+          const fromHeader = headers.find((h) => h.name.toLowerCase() === "from")?.value || "Expéditeur inconnu";
+          const subjectHeader = headers.find((h) => h.name.toLowerCase() === "subject")?.value || "Sans objet";
+          const dateHeader = headers.find((h) => h.name.toLowerCase() === "date")?.value || new Date().toISOString();
+
+          let body = msgData.snippet || "";
+          if (msgData.payload?.body?.data) {
+            body = Buffer.from(msgData.payload.body.data, "base64").toString("utf-8");
+          } else if (msgData.payload?.parts) {
+            const textPart = msgData.payload.parts.find(
+              (p: { mimeType?: string; body?: { data?: string } }) => p.mimeType === "text/plain"
+            );
+            if (textPart?.body?.data) {
+              body = Buffer.from(textPart.body.data, "base64").toString("utf-8");
+            }
+          }
+
+          results.push({
+            id: `gmail_${item.id}`,
+            channel: "gmail",
+            sender: {
+              name: fromHeader.split("<")[0].trim() || fromHeader,
+              identifier: (fromHeader.match(/<([^>]+)>/)?.[1] || fromHeader).trim(),
+            },
+            timestamp: new Date(dateHeader).toISOString(),
+            subject: subjectHeader,
+            content: body.substring(0, 1000),
+          });
+        } catch (itemErr) {
+          console.warn("Gmail individual message fetch error:", itemErr);
+        }
+      }
+
+      return results;
+    } catch (err) {
+      console.error("Gmail fetchUnreadMessages error:", err);
+      return [];
     }
   }
 }

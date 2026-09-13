@@ -1,3 +1,5 @@
+import { IncomingMessage } from "@/lib/agent/types";
+
 /**
  * Connecteur Outlook & Microsoft 365 pour OmniMind (via Microsoft Graph API).
  */
@@ -82,6 +84,55 @@ export class OutlookChannel {
     } catch (err) {
       console.error("Outlook createEvent error:", err);
       return false;
+    }
+  }
+
+  /**
+   * Récupère les emails non lus de la boîte Outlook
+   */
+  public async fetchUnreadMessages(maxResults: number = 10): Promise<IncomingMessage[]> {
+    if (!this.isConfigured()) {
+      return [];
+    }
+
+    try {
+      const res = await fetch(
+        `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$filter=isRead eq false&$top=${maxResults}&$select=id,from,subject,bodyPreview,receivedDateTime`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await res.json();
+      if (!data.value || !Array.isArray(data.value)) {
+        return [];
+      }
+
+      return data.value.map(
+        (m: {
+          id: string;
+          from?: { emailAddress?: { name?: string; address?: string } };
+          subject?: string;
+          bodyPreview?: string;
+          receivedDateTime?: string;
+        }) => ({
+          id: `outlook_${m.id}`,
+          channel: "outlook" as const,
+          sender: {
+            name: m.from?.emailAddress?.name || "Expéditeur Outlook",
+            identifier: m.from?.emailAddress?.address || "outlook@user",
+          },
+          timestamp: m.receivedDateTime || new Date().toISOString(),
+          subject: m.subject || "Sans objet",
+          content: m.bodyPreview || "",
+        })
+      );
+    } catch (err) {
+      console.error("Outlook fetchUnreadMessages error:", err);
+      return [];
     }
   }
 }

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db/store";
-import { ActionProposal } from "@/lib/agent/types";
 import { OmniMindAgent } from "@/lib/agent/core";
+import { AGENT_TOOLS, executeAgentTool } from "@/lib/agent/tools";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -20,13 +20,15 @@ export interface AgentReasoningResult {
 
 export async function processVoiceAgentConversation(
   userSpeech: string,
-  history: ChatMessage[] = []
+  history: ChatMessage[] = [],
+  userId?: string
 ): Promise<AgentReasoningResult> {
-  const pendingActions = db.actions.getAll().filter((a) => a.status === "pending_approval");
-  const executedActions = db.actions.getAll().filter((a) => a.status === "executed");
-  const latestBriefing = db.briefings.getLatest();
-  const accounts = db.accounts.getAll();
-  const settings = db.settings.get();
+  const pendingActions = db.actions.getAll(userId).filter((a) => a.status === "pending_approval");
+  const executedActions = db.actions.getAll(userId).filter((a) => a.status === "executed");
+  const latestBriefing = db.briefings.getLatest(userId);
+  const accounts = db.accounts.getAll(userId);
+  const settings = db.settings.get(userId);
+  const memories = db.memories.getAll(userId);
 
   // Détection des clés d'IA disponibles (Gemini, Groq, OpenAI)
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -35,7 +37,9 @@ export async function processVoiceAgentConversation(
 
   // Contexte complet en temps réel transmis à l'IA
   const systemContext = {
+    userId,
     user: settings.userName,
+    longTermMemories: memories.map((m) => `[${m.category}] ${m.fact}`),
     pendingActions: pendingActions.map((a) => ({
       id: a.id,
       title: a.title,
@@ -109,7 +113,7 @@ Réponds UNIQUEMENT en JSON valide avec le schéma :
   // 3. TENTATIVE VIA OPENAI (GPT-4o)
   if (openAiKey) {
     try {
-      const parsed = await callOpenAI(openAiKey, agentPrompt, history, userSpeech);
+      const parsed = await callOpenAI(openAiKey, agentPrompt, history, userSpeech, userId);
       return await finalizeAgentResponse(parsed);
     } catch (err) {
       console.warn("Erreur appel OpenAI API:", err);
@@ -223,12 +227,13 @@ async function callGroq(
   return JSON.parse(data.choices[0].message.content);
 }
 
-// Appel direct à OpenAI (GPT-4o)
+// Appel direct à OpenAI (GPT-4o) avec Function Calling (Tools) natifs
 async function callOpenAI(
   apiKey: string,
   systemPrompt: string,
   history: ChatMessage[],
-  userSpeech: string
+  userSpeech: string,
+  userId?: string
 ) {
   const url = "https://api.openai.com/v1/chat/completions";
   const messages = [
@@ -246,7 +251,8 @@ async function callOpenAI(
     body: JSON.stringify({
       model: "gpt-4o-mini",
       messages,
-      response_format: { type: "json_object" },
+      tools: AGENT_TOOLS,
+      tool_choice: "auto",
       temperature: 0.4,
     }),
   });
@@ -257,7 +263,38 @@ async function callOpenAI(
   }
 
   const data = await res.json();
-  return JSON.parse(data.choices[0].message.content);
+  const choice = data.choices?.[0]?.message;
+
+  // Prise en charge des appels d'outils natifs (Function Calling)
+  if (choice?.tool_calls && Array.isArray(choice.tool_calls) && choice.tool_calls.length > 0) {
+    let toolSummary = "";
+    let executedActionId: string | undefined;
+
+    for (const toolCall of choice.tool_calls) {
+      try {
+        const args = JSON.parse(toolCall.function?.arguments || "{}");
+        const execRes = await executeAgentTool(toolCall.function?.name, args, userId);
+        toolSummary += (toolSummary ? " " : "") + execRes.message;
+        if (toolCall.function?.name === "execute_pending_action") {
+          executedActionId = args.actionId;
+        }
+      } catch (err) {
+        console.error("Tool execution error:", err);
+      }
+    }
+
+    return {
+      thought: `Outil IA exécuté avec succès : ${toolSummary}`,
+      spokenResponse: toolSummary || "Action exécutée avec succès.",
+      actionToExecuteId: executedActionId,
+    };
+  }
+
+  let content = choice?.content || "{}";
+  if (content.includes("```")) {
+    content = content.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, "$1").trim();
+  }
+  return JSON.parse(content);
 }
 
 /**
@@ -284,8 +321,6 @@ function runDeepContextualReasoning(
   }
 ): AgentReasoningResult {
   const q = input.toLowerCase().trim();
-  const lastUserMsg = history.filter((h) => h.role === "user").slice(-2)[0]?.content.toLowerCase() || "";
-  const lastAssistantMsg = history.filter((h) => h.role === "assistant").slice(-1)[0]?.content || "";
 
   const pendingCount = ctx.pendingActions.length;
   const primaryAction = ctx.pendingActions[0];

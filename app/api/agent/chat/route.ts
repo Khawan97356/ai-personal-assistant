@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processVoiceAgentConversation } from "@/lib/agent/chat";
+import { requireAuth } from "@/lib/auth/session";
 
 export async function POST(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth.errorResponse) return auth.errorResponse;
+
   try {
     const body = await req.json();
     const { message, history } = body;

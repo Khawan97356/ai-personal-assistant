@@ -100,6 +100,37 @@ export class WhatsAppChannel {
       return false;
     }
   }
+
+  /**
+   * Télécharge un média binaire (audio / vocal) via Meta Graph API
+   */
+  public async downloadMediaBuffer(mediaId: string): Promise<Buffer | null> {
+    if (!this.isConfigured()) return null;
+
+    try {
+      // 1. Récupérer l'URL de téléchargement direct auprès de Meta
+      const mediaRes = await fetch(`https://graph.facebook.com/v19.0/${mediaId}`, {
+        headers: { Authorization: `Bearer ${this.apiToken}` },
+      });
+      const mediaData = await mediaRes.json();
+      if (!mediaData.url) return null;
+
+      // 2. Télécharger le binaire depuis l'URL de stockage Meta
+      const downloadRes = await fetch(mediaData.url, {
+        headers: {
+          Authorization: `Bearer ${this.apiToken}`,
+          "User-Agent": "OmniMind-Agent/1.0",
+        },
+      });
+
+      if (!downloadRes.ok) return null;
+      const arrayBuf = await downloadRes.arrayBuffer();
+      return Buffer.from(arrayBuf);
+    } catch (err) {
+      console.error("WhatsApp downloadMediaBuffer error:", err);
+      return null;
+    }
+  }
 }
 
 export const whatsAppChannel = new WhatsAppChannel();

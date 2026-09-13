@@ -4,6 +4,15 @@ import { omniAgent, globalActionStore } from "@/lib/agent/core";
 import { transcribeAudio } from "@/lib/agent/audio";
 
 export async function POST(req: NextRequest) {
+  // Sécurisation webhook Telegram via secret token
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (expectedSecret) {
+    const headerSecret = req.headers.get("x-telegram-bot-api-secret-token");
+    if (headerSecret !== expectedSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   try {
     const update = await req.json();
 
@@ -87,14 +96,21 @@ export async function POST(req: NextRequest) {
 
       // Message vocal reçu (Audio / Voice)
       if (msg.voice) {
-        await telegramChannel.sendMessage(chatId, "🎙️ *Note vocale reçue. Transcription et analyse en cours...*");
+        await telegramChannel.sendMessage(chatId, "🎙️ *Note vocale reçue. Téléchargement et transcription en cours...*");
 
-        // Simulation de transcription (ou utilisation Whisper si token configuré)
-        const transcription = await transcribeAudio(Buffer.from(""), "voice.ogg");
+        let audioBuffer: Buffer | null = null;
+        if (msg.voice.file_id) {
+          audioBuffer = await telegramChannel.downloadFileBuffer(msg.voice.file_id);
+        }
+
+        const transcription = await transcribeAudio(
+          audioBuffer || Buffer.from(""),
+          "voice.ogg"
+        );
 
         await telegramChannel.sendMessage(
           chatId,
-          `📝 *Transcription :*\n_"${transcription.text}"_\n\n⚡ *Action :* Rappel ajouté automatiquement à votre agenda.`
+          `📝 *Transcription :*\n_"${transcription.text}"_\n\n⚡ *Action :* Note analysée et enregistrée par OmniMind.`
         );
         return NextResponse.json({ ok: true });
       }

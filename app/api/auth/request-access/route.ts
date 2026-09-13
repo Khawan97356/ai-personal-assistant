@@ -44,15 +44,21 @@ export async function POST(req: NextRequest) {
       baseUrl: origin,
     });
 
+    const isDev = process.env.NODE_ENV !== "production";
+
     return NextResponse.json({
       success: true,
       message: `Un email de confirmation a été envoyé à ${normalizedEmail}.`,
       email: normalizedEmail,
       name: user.name,
-      // Fourni pour faciliter les tests locaux si aucun service SMTP externe n'est configuré
-      devCode: emailResult.verificationCode,
-      devMagicLink: emailResult.magicLink,
-      method: emailResult.method,
+      // Fourni uniquement en environnement de développement local
+      ...(isDev
+        ? {
+            devCode: emailResult.verificationCode,
+            devMagicLink: emailResult.magicLink,
+            method: emailResult.method,
+          }
+        : {}),
     });
   } catch (error) {
     console.error("Erreur request-access:", error);

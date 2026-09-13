@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Mic,
-  MicOff,
   Volume2,
   VolumeX,
   Sparkles,
@@ -11,7 +10,6 @@ import {
   Square,
   Send,
   X,
-  Zap,
   CheckCircle2,
   Bot,
 } from "lucide-react";
@@ -72,6 +70,8 @@ export default function JarvisVoiceCompanion({
 
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const isMountedRef = useRef(true);
+  const latestTranscriptRef = useRef("");
+  const sendToAgentRef = useRef<(text: string) => Promise<void>>(async () => {});
 
   // Initialisation de la reconnaissance vocale Web Speech API
   useEffect(() => {
@@ -96,6 +96,7 @@ export default function JarvisVoiceCompanion({
           for (let i = 0; i < event.results.length; i++) {
             currentText += event.results[i][0].transcript;
           }
+          latestTranscriptRef.current = currentText;
           if (isMountedRef.current) {
             setTranscript(currentText);
           }
@@ -109,6 +110,11 @@ export default function JarvisVoiceCompanion({
         recognition.onend = () => {
           if (isMountedRef.current) {
             setIsListening(false);
+            const spoken = latestTranscriptRef.current.trim();
+            if (spoken.length > 1) {
+              latestTranscriptRef.current = "";
+              sendToAgentRef.current(spoken);
+            }
           }
         };
 
@@ -201,14 +207,24 @@ export default function JarvisVoiceCompanion({
     [history, isThinking, onActionExecuted, speakResponse]
   );
 
+  useEffect(() => {
+    sendToAgentRef.current = sendToAgent;
+  }, [sendToAgent]);
+
   // Démarrer l'écoute au micro
   const toggleListening = () => {
     stopSpeaking();
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
+      const spoken = latestTranscriptRef.current.trim();
+      if (spoken.length > 1) {
+        latestTranscriptRef.current = "";
+        sendToAgent(spoken);
+      }
     } else {
       setTranscript("");
+      latestTranscriptRef.current = "";
       playChime("start");
       try {
         recognitionRef.current?.start();
@@ -218,13 +234,6 @@ export default function JarvisVoiceCompanion({
       }
     }
   };
-
-  // Traiter quand l'écoute est finie et qu'il y a un texte
-  useEffect(() => {
-    if (!isListening && transcript.trim().length > 1) {
-      sendToAgent(transcript);
-    }
-  }, [isListening, transcript, sendToAgent]);
 
   // Interrompre la parole
   const handleStopSpeaking = () => {

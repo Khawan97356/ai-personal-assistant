@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Sparkles,
   LayoutDashboard,
@@ -21,7 +22,6 @@ import {
   AlertCircle,
   Mic,
   LogOut,
-  User,
 } from "lucide-react";
 import { ActionProposal, SummaryReport } from "@/lib/agent/types";
 import JarvisVoiceCompanion from "@/components/JarvisVoiceCompanion";
@@ -30,6 +30,7 @@ import { speakText } from "@/lib/audio/speech";
 type TabType = "overview" | "actions" | "briefings" | "accounts" | "settings";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("overview");
 
   // Utilisateur connecté en temps réel
@@ -184,7 +185,7 @@ export default function DashboardPage() {
       await fetch("/api/auth/logout", { method: "POST" });
       setCurrentUser(null);
       showToast("Déconnexion réussie.");
-      window.location.href = "/login";
+      router.push("/login");
     } catch (err) {
       console.error("Erreur déconnexion:", err);
     }

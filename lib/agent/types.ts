@@ -40,6 +40,7 @@ export interface ExtractedCommitment {
 
 export interface ActionProposal {
   id: string;
+  userId?: string;
   type: ActionType;
   channel: ChannelType;
   title: string;
@@ -60,6 +61,7 @@ export interface ActionProposal {
 
 export interface SummaryReport {
   id: string;
+  userId?: string;
   generatedAt: string;
   period: "morning" | "evening" | "instant";
   totalMessagesAnalyzed: number;
@@ -72,6 +74,7 @@ export interface SummaryReport {
 }
 
 export interface UserPreferences {
+  userId?: string;
   userName: string;
   userEmail: string;
   userPhone?: string;
@@ -81,4 +84,12 @@ export interface UserPreferences {
   eveningBriefingTime: string; // e.g. "19:00"
   requireApprovalBeforeSending: boolean;
   vipContacts: string[]; // list of emails/phones considered VIP
+}
+
+export interface UserMemory {
+  id: string;
+  userId: string;
+  category: "preference" | "constraint" | "vip_relation" | "work_habit";
+  fact: string;
+  createdAt: string;
 }

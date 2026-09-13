@@ -1,0 +1,109 @@
+// Prisma Schema pour OmniMind AI — Multi-locataire & Persistance Cloud
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                String             @id @default(cuid())
+  email             String             @unique
+  name              String
+  verified          Boolean            @default(false)
+  verificationToken String?
+  verificationCode  String?
+  tokenExpiresAt    DateTime?
+  createdAt         DateTime           @default(now())
+  lastLoginAt       DateTime?
+
+  actions           ActionProposal[]
+  briefings         SummaryReport[]
+  accounts          ConnectedAccount[]
+  preferences       UserPreferences?
+  memories          UserMemory[]
+
+  @@index([email])
+}
+
+model ActionProposal {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // send_email, reply_message, schedule_event, create_reminder, archive_message
+  channel     String   // gmail, whatsapp, telegram, outlook, discord
+  title       String
+  description String
+  status      String   @default("pending_approval") // pending_approval, approved, executed, rejected
+  payload     Json
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+model SummaryReport {
+  id                    String   @id @default(cuid())
+  userId                String
+  generatedAt           DateTime @default(now())
+  period                String   // morning, evening, instant
+  totalMessagesAnalyzed Int      @default(0)
+  criticalPoints        Json     // string[]
+  decisionsTaken        Json     // string[]
+  pendingTasks          Json     // ExtractedCommitment[]
+  suggestedActions      Json     // ActionProposal[]
+  summaryMarkdown       String   @db.Text
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, generatedAt])
+}
+
+model ConnectedAccount {
+  id          String   @id // e.g. "gmail", "whatsapp", "telegram", "outlook", "discord"
+  userId      String
+  name        String
+  channel     String
+  type        String
+  status      String   @default("disconnected") // connected, disconnected
+  identifier  String
+  unreadCount Int      @default(0)
+  lastSyncAt  DateTime @default(now())
+  iconColor   String
+  bgColor     String
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([id, userId])
+  @@index([userId])
+}
+
+model UserPreferences {
+  id                           String   @id @default(cuid())
+  userId                       String   @unique
+  userName                     String   @default("Utilisateur")
+  userEmail                    String   @default("")
+  userPhone                    String?
+  telegramChatId               String?
+  preferredBriefingChannel     String   @default("telegram")
+  morningBriefingTime          String   @default("08:00")
+  eveningBriefingTime          String   @default("19:00")
+  requireApprovalBeforeSending Boolean  @default(true)
+  vipContacts                  Json     // string[]
+
+  user                         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  category  String   @default("preference") // preference, constraint, vip_relation, work_habit
+  fact      String   // e.g. "Préfère ne pas avoir de réunion le vendredi après-midi"
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, category])
+}

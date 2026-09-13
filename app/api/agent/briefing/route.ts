@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { omniAgent } from "@/lib/agent/core";
 import { IncomingMessage } from "@/lib/agent/types";
+import { requireAuth } from "@/lib/auth/session";
 
 export async function POST(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (auth.errorResponse) return auth.errorResponse;
+
   try {
     const body = await req.json().catch(() => ({}));
     const customMessages: IncomingMessage[] = body.messages || [
@@ -51,7 +55,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   // Prise en charge des appels Cron GET
-  return POST(new NextRequest("http://localhost:3000/api/agent/briefing", { method: "POST" }));
+  return POST(req);
 }
