@@ -8,9 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "telegram:poll": "node scripts/telegram-polling.mjs",
-    "scheduler": "node scripts/scheduler.mjs"
+    "scheduler": "node scripts/scheduler.mjs",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "node scripts/seed-prisma.mjs",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "^6.4.1",
     "lucide-react": "^1.40.0",
     "next": "16.3.4",
     "node-cron": "^4.6.0",
@@ -25,6 +31,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "prisma": "^6.4.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

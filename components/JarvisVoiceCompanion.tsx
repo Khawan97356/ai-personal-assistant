@@ -19,6 +19,7 @@ interface VoiceCompanionProps {
   isOpen: boolean;
   onClose: () => void;
   onActionExecuted?: () => void;
+  userName?: string;
 }
 
 // Interface simplifiée pour la reconnaissance vocale
@@ -51,6 +52,7 @@ export default function JarvisVoiceCompanion({
   isOpen,
   onClose,
   onActionExecuted,
+  userName = "Thomas",
 }: VoiceCompanionProps) {
   const [isListening, setIsListening] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
@@ -60,7 +62,7 @@ export default function JarvisVoiceCompanion({
 
   const [currentThought, setCurrentThought] = useState<string | null>(null);
   const [currentResponse, setCurrentResponse] = useState<string>(
-    "Bonjour Thomas ! Je suis connecté à tes flux. Parle-moi ou pose-moi une question."
+    `Bonjour ${userName} ! Je suis connecté à tes flux. Parle-moi ou pose-moi une question.`
   );
   const [voiceMode, setVoiceMode] = useState<"robot" | "natural">("robot");
   const [isMuted, setIsMuted] = useState(false);

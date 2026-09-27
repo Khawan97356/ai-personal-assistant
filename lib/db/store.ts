@@ -273,17 +273,53 @@ class JsonDatabase {
   // --- ACCOUNTS REPOSITORY (Multi-tenant) ---
   public accounts = {
     getAll: (userId?: string): ConnectedAccountRecord[] => {
-      const accounts = this.read().accounts;
-      if (!userId) return accounts;
-      return accounts.filter((a) => !a.userId || a.userId === userId);
+      const db = this.read();
+      if (!userId) return db.accounts;
+      const userAccounts = db.accounts.filter((a) => a.userId === userId);
+      if (userAccounts.length > 0) return userAccounts;
+
+      // Initialisation des comptes personnalisés pour cet utilisateur
+      const baseDefaults = db.accounts.filter((a) => !a.userId);
+      const toClone = baseDefaults.length > 0 ? baseDefaults : DEFAULT_DB.accounts;
+      const initialized = toClone.map((acc) => ({
+        ...acc,
+        userId,
+      }));
+      db.accounts.push(...initialized);
+      this.write(db);
+      return initialized;
     },
     toggleStatus: (id: string, userId?: string): ConnectedAccountRecord | null => {
       const db = this.read();
+      if (userId) {
+        const hasUserAcc = db.accounts.some((a) => a.userId === userId && a.id === id);
+        if (!hasUserAcc) {
+          this.accounts.getAll(userId);
+        }
+      }
       const account = db.accounts.find(
-        (a) => a.id === id && (!userId || !a.userId || a.userId === userId)
+        (a) => a.id === id && (!userId || a.userId === userId)
       );
       if (account) {
         account.status = account.status === "connected" ? "disconnected" : "connected";
+        this.write(db);
+        return account;
+      }
+      return null;
+    },
+    updateIdentifier: (id: string, identifier: string, userId?: string): ConnectedAccountRecord | null => {
+      const db = this.read();
+      if (userId) {
+        const hasUserAcc = db.accounts.some((a) => a.userId === userId && a.id === id);
+        if (!hasUserAcc) {
+          this.accounts.getAll(userId);
+        }
+      }
+      const account = db.accounts.find(
+        (a) => a.id === id && (!userId || a.userId === userId)
+      );
+      if (account) {
+        account.identifier = identifier.trim();
         this.write(db);
         return account;
       }
@@ -339,6 +375,12 @@ class JsonDatabase {
       };
       db.memories.unshift(newMemory);
       this.write(db);
+
+      // Indexation asynchrone dans pgvector
+      import("@/lib/agent/vectorMemory")
+        .then(({ indexUserMemoryFact }) => indexUserMemoryFact(newMemory))
+        .catch(() => {});
+
       return newMemory;
     },
     delete: (id: string, userId?: string): boolean => {
@@ -361,6 +403,19 @@ class JsonDatabase {
       return list
         .filter((m) => terms.some((t) => m.fact.toLowerCase().includes(t)))
         .slice(0, 5);
+    },
+    searchSemantic: async (
+      query: string,
+      userId?: string,
+      limit: number = 5
+    ): Promise<UserMemory[]> => {
+      const list = this.memories.getAll(userId);
+      try {
+        const { searchSemanticUserMemories } = await import("@/lib/agent/vectorMemory");
+        return await searchSemanticUserMemories(userId || "usr_dev_admin", query, list, limit);
+      } catch {
+        return this.memories.search(query, userId);
+      }
     },
   };
 

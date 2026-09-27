@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { telegramChannel } from "@/lib/agent/channels/telegram";
 import { omniAgent, globalActionStore } from "@/lib/agent/core";
 import { transcribeAudio } from "@/lib/agent/audio";
+import { processVoiceAgentConversation } from "@/lib/agent/chat";
+import { saveMemoryChunk } from "@/lib/agent/vectorMemory";
+import { db } from "@/lib/db/store";
 
 export async function POST(req: NextRequest) {
   // Sécurisation webhook Telegram via secret token
@@ -15,6 +18,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const update = await req.json();
+
+    // Résolution de l'utilisateur actif
+    const allUsers = db.users.getAll();
+    const verifiedUser = allUsers.find((u) => u.verified) || allUsers[0];
+    const userId = verifiedUser?.id || "usr_dev_admin";
 
     // 1. Gestion des clics sur les boutons inline (Validation / Rejet d'action)
     if (update.callback_query) {
@@ -31,9 +39,10 @@ export async function POST(req: NextRequest) {
         }
       } else if (data.startsWith("reject:")) {
         const actionId = data.replace("reject:", "");
-        const action = globalActionStore.get(actionId);
+        const action = db.actions.getById(actionId) || globalActionStore.get(actionId);
         if (action) {
           action.status = "rejected";
+          db.actions.updateStatus(actionId, "rejected", userId);
         }
         await telegramChannel.answerCallbackQuery(cb.id, "Action rejetée.");
         if (chatId) {
@@ -53,38 +62,21 @@ export async function POST(req: NextRequest) {
       if (msg.text === "/start" || msg.text === "/help") {
         const welcomeText =
           `👋 *Bonjour ! Je suis OmniMind, votre assistant personnel IA.*\n\n` +
-          `Je suis connecté à vos flux de communication. Voici ce que vous pouvez me demander :\n` +
+          `Je suis connecté en direct à vos flux de communication. Voici ce que vous pouvez faire :\n` +
           `• */briefing* : Générer votre synthèse exécutive du moment\n` +
-          `• M'envoyer une *note vocale* : Je la transcris et crée les rappels associés\n` +
-          `• M'écrire un ordre naturel : _"Déplace mon rdv de 15h à demain 10h"_`;
+          `• M'envoyer une *note vocale* : Je la transcris et l'analyse immédiatement\n` +
+          `• M'écrire un message naturel : _"Valide l'email de Lamy"_, _"Qu'ai-je de prévu cet après-midi ?"_`;
         await telegramChannel.sendMessage(chatId, welcomeText);
         return NextResponse.json({ ok: true });
       }
 
       // Commande /briefing
       if (msg.text === "/briefing") {
-        await telegramChannel.sendMessage(chatId, "⏳ *Génération de votre briefing en cours...*");
-        
-        // Simule ou récupère les flux récents
-        const mockMessages = [
-          {
-            id: "msg_1",
-            channel: "whatsapp" as const,
-            sender: { name: "Julie", identifier: "+33600000001", isVip: true },
-            timestamp: new Date().toISOString(),
-            content: "Salut ! On peut décaler le point d'équipe de 15h à 16h30 stp ?",
-          },
-          {
-            id: "msg_2",
-            channel: "gmail" as const,
-            sender: { name: "Cabinet Lamy", identifier: "avocat@lamy.fr", isVip: true },
-            timestamp: new Date().toISOString(),
-            subject: "Contrat à signer",
-            content: "Veuillez trouver l'avenant à signer avant ce soir 18h.",
-          },
-        ];
+        await telegramChannel.sendMessage(chatId, "⏳ *Génération de votre briefing exécutif en cours...*");
 
-        const report = await omniAgent.generateExecutiveBriefing(mockMessages, "instant");
+        // Relève réelle des emails (Gmail, Outlook) ou flux prioritaire
+        const messages = await omniAgent.collectRecentMessages();
+        const report = await omniAgent.generateExecutiveBriefing(messages, "instant");
         await telegramChannel.sendMessage(chatId, report.summaryMarkdown);
 
         for (const action of report.suggestedActions) {
@@ -96,7 +88,7 @@ export async function POST(req: NextRequest) {
 
       // Message vocal reçu (Audio / Voice)
       if (msg.voice) {
-        await telegramChannel.sendMessage(chatId, "🎙️ *Note vocale reçue. Téléchargement et transcription en cours...*");
+        await telegramChannel.sendMessage(chatId, "🎙️ *Note vocale reçue. Téléchargement et analyse IA en cours...*");
 
         let audioBuffer: Buffer | null = null;
         if (msg.voice.file_id) {
@@ -108,19 +100,72 @@ export async function POST(req: NextRequest) {
           "voice.ogg"
         );
 
+        // Sauvegarde dans la mémoire vectorielle RAG
+        await saveMemoryChunk({
+          userId,
+          source: "telegram",
+          content: transcription.text,
+          sourceRef: String(msg.message_id),
+        }).catch(() => {});
+
         await telegramChannel.sendMessage(
           chatId,
-          `📝 *Transcription :*\n_"${transcription.text}"_\n\n⚡ *Action :* Note analysée et enregistrée par OmniMind.`
+          `📝 *Transcription :*\n_"${transcription.text}"_`
         );
+
+        // Traitement cognitif autonome par l'agent IA
+        const agentResult = await processVoiceAgentConversation(transcription.text, [], userId);
+        await telegramChannel.sendMessage(chatId, `🤖 *OmniMind :* ${agentResult.spokenResponse}`);
+
+        // Si l'IA propose une action à valider
+        if (agentResult.suggestedActionId) {
+          const act = db.actions.getById(agentResult.suggestedActionId, userId);
+          if (act) {
+            await telegramChannel.sendActionProposal(chatId, act.title, act.description, act.id);
+          }
+        }
+
+        // Si une action a été exécutée directement
+        if (agentResult.executedAction) {
+          await telegramChannel.sendMessage(
+            chatId,
+            `⚡ *Action exécutée :* "${agentResult.executedAction.title}"`
+          );
+        }
+
         return NextResponse.json({ ok: true });
       }
 
       // Ordre textuel libre en langage naturel
       if (msg.text) {
-        await telegramChannel.sendMessage(
-          chatId,
-          `🤖 *Ordre reçu :* "${msg.text}"\n_Analyse en cours par OmniMind Agent..._`
-        );
+        // Sauvegarde dans la mémoire vectorielle RAG
+        await saveMemoryChunk({
+          userId,
+          source: "telegram",
+          content: msg.text,
+          sourceRef: String(msg.message_id),
+        }).catch(() => {});
+
+        // Traitement cognitif par l'agent OmniMind
+        const agentResult = await processVoiceAgentConversation(msg.text, [], userId);
+        await telegramChannel.sendMessage(chatId, agentResult.spokenResponse);
+
+        // Si une action a été exécutée sur ordre de l'utilisateur
+        if (agentResult.executedAction) {
+          await telegramChannel.sendMessage(
+            chatId,
+            `✅ *Exécuté :* "${agentResult.executedAction.title}"`
+          );
+        }
+
+        // Si une action est suggérée pour validation 1-Tap
+        if (agentResult.suggestedActionId) {
+          const act = db.actions.getById(agentResult.suggestedActionId, userId);
+          if (act && act.status === "pending_approval") {
+            await telegramChannel.sendActionProposal(chatId, act.title, act.description, act.id);
+          }
+        }
+
         return NextResponse.json({ ok: true });
       }
     }

@@ -117,6 +117,8 @@ export default function DashboardPage() {
 
   // Paramètres utilisateur
   const [settings, setSettings] = useState({
+    userName: "Thomas",
+    userEmail: "thomas.dev@gmail.com",
     morningBriefingTime: "08:00",
     eveningBriefingTime: "19:00",
     preferredChannel: "telegram",
@@ -124,6 +126,7 @@ export default function DashboardPage() {
     vipEmails: "client@important.com, marc@societe.fr, avocat@lamy.fr",
     workingDays: "Lun - Ven",
   });
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -174,10 +177,90 @@ export default function DashboardPage() {
       })
       .catch((err) => console.error("Error fetching actions:", err));
 
+    // Charger les paramètres réels depuis la base
+    fetch("/api/agent/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.success && data.settings) {
+          const s = data.settings;
+          setSettings((prev) => ({
+            ...prev,
+            userName: s.userName || prev.userName,
+            userEmail: s.userEmail || prev.userEmail,
+            morningBriefingTime: s.morningBriefingTime || prev.morningBriefingTime,
+            eveningBriefingTime: s.eveningBriefingTime || prev.eveningBriefingTime,
+            preferredChannel: s.preferredBriefingChannel || prev.preferredChannel,
+            requireApproval: s.requireApprovalBeforeSending ?? prev.requireApproval,
+            vipEmails: Array.isArray(s.vipContacts)
+              ? s.vipContacts.join(", ")
+              : typeof s.vipContacts === "string"
+              ? s.vipContacts
+              : prev.vipEmails,
+          }));
+        }
+      })
+      .catch((err) => console.error("Error fetching settings:", err));
+
+    // Charger les comptes réels depuis la base
+    fetch("/api/agent/accounts")
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.success && Array.isArray(data.accounts) && data.accounts.length > 0) {
+          setAccounts(
+            data.accounts.map((acc: {
+              id: string;
+              name: string;
+              type: string;
+              status: string;
+              identifier?: string;
+              email?: string;
+              unreadCount: number;
+              iconColor: string;
+              bgColor: string;
+            }) => ({
+              ...acc,
+              email: acc.identifier || acc.email || "",
+            }))
+          );
+        }
+      })
+      .catch((err) => console.error("Error fetching accounts:", err));
+
     return () => {
       isMounted = false;
     };
   }, []);
+
+  // Enregistrer les paramètres de l'agent en base
+  const saveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const res = await fetch("/api/agent/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          morningBriefingTime: settings.morningBriefingTime,
+          eveningBriefingTime: settings.eveningBriefingTime,
+          preferredBriefingChannel: settings.preferredChannel,
+          requireApprovalBeforeSending: settings.requireApproval,
+          vipContacts: settings.vipEmails,
+          userName: currentUser?.name || settings.userName,
+          userEmail: currentUser?.email || settings.userEmail,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("💾 Vos préférences ont été enregistrées avec succès !");
+      } else {
+        showToast(`❌ Erreur : ${data.message || "Échec de sauvegarde"}`);
+      }
+    } catch (err) {
+      console.error("Save settings error:", err);
+      showToast("❌ Erreur lors de la communication avec le serveur.");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   // Déconnexion
   const handleLogout = async () => {
@@ -237,18 +320,33 @@ export default function DashboardPage() {
     }
   };
 
-  // Basculer un compte
-  const toggleAccount = (id: string) => {
-    setAccounts((prev) =>
-      prev.map((acc) => {
-        if (acc.id === id) {
-          const newStatus = acc.status === "connected" ? "disconnected" : "connected";
-          showToast(newStatus === "connected" ? `Compte ${acc.name} connecté !` : `Compte ${acc.name} déconnecté.`);
-          return { ...acc, status: newStatus };
-        }
-        return acc;
-      })
-    );
+  // Basculer l'état d'un compte (persistance réelle en base)
+  const toggleAccount = async (id: string) => {
+    try {
+      const res = await fetch("/api/agent/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: id, action: "toggle" }),
+      });
+      const data = await res.json();
+      if (data.success && data.account) {
+        setAccounts((prev) =>
+          prev.map((acc) =>
+            acc.id === id ? { ...acc, status: data.account.status } : acc
+          )
+        );
+        showToast(
+          data.account.status === "connected"
+            ? `✅ Compte ${data.account.name} connecté !`
+            : `Compte ${data.account.name} déconnecté.`
+        );
+      } else {
+        showToast(`❌ Erreur : ${data.message || "Échec modification compte"}`);
+      }
+    } catch (err) {
+      console.error("Erreur toggle account:", err);
+      showToast("❌ Erreur lors de la mise à jour du compte.");
+    }
   };
 
   // Ouvrir le modal de configuration
@@ -1030,10 +1128,18 @@ export default function DashboardPage() {
                 </div>
 
                 <button
-                  onClick={() => showToast("Paramètres sauvegardés avec succès !")}
-                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-colors cursor-pointer"
+                  onClick={saveSettings}
+                  disabled={savingSettings}
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
                 >
-                  Sauvegarder les Préférences
+                  {savingSettings ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Enregistrement...</span>
+                    </>
+                  ) : (
+                    <span>Sauvegarder les Préférences</span>
+                  )}
                 </button>
               </div>
             </div>
@@ -1254,6 +1360,7 @@ export default function DashboardPage() {
         isOpen={isVoiceOpen}
         onClose={() => setIsVoiceOpen(false)}
         onActionExecuted={fetchActions}
+        userName={currentUser?.name || settings.userName || "Khawan"}
       />
     </div>
   );

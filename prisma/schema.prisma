@@ -1,11 +1,13 @@
 // Prisma Schema pour OmniMind AI — Multi-locataire & Persistance Cloud
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 model User {
@@ -24,6 +26,7 @@ model User {
   accounts          ConnectedAccount[]
   preferences       UserPreferences?
   memories          UserMemory[]
+  chunks            MemoryChunk[]
 
   @@index([email])
 }
@@ -62,7 +65,7 @@ model SummaryReport {
 }
 
 model ConnectedAccount {
-  id          String   @id // e.g. "gmail", "whatsapp", "telegram", "outlook", "discord"
+  id          String   // e.g. "gmail", "whatsapp", "telegram", "outlook", "discord"
   userId      String
   name        String
   channel     String
@@ -100,10 +103,26 @@ model UserMemory {
   id        String   @id @default(cuid())
   userId    String
   category  String   @default("preference") // preference, constraint, vip_relation, work_habit
-  fact      String   // e.g. "Préfère ne pas avoir de réunion le vendredi après-midi"
+  fact      String
   createdAt DateTime @default(now())
+
+  embedding Unsupported("vector(1536)")?
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, category])
+}
+
+model MemoryChunk {
+  id        String   @id @default(cuid())
+  userId    String
+  source    String   // gmail, whatsapp, telegram, outlook, discord
+  sourceRef String?  // id du message/thread d'origine, pour contextualisation
+  content   String   @db.Text
+  embedding Unsupported("vector(1536)")
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, source])
 }

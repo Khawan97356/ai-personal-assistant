@@ -1,6 +1,34 @@
 {
   "actions": [
     {
+      "id": "act_1789311758824_86bg1",
+      "type": "send_email",
+      "channel": "gmail",
+      "title": "Envoyer confirmation de signature au Cabinet Lamy",
+      "description": "Préparer l'email confirmant que l'avenant sera retourné signé aujourd'hui.",
+      "status": "pending_approval",
+      "createdAt": "2026-09-13T15:02:38.824Z",
+      "payload": {
+        "to": "cabinet@lamy-associes.com",
+        "subject": "RE: Avenant Contrat SaaS - Signature en cours",
+        "body": "Bonjour Maître,\n\nBien reçu. L'avenant est actuellement en cours de signature électronique et vous sera renvoyé avant 18h.\n\nBien cordialement,\nThomas"
+      }
+    },
+    {
+      "id": "act_1789311758824_0ewen",
+      "type": "schedule_event",
+      "channel": "gmail",
+      "title": "Mise à jour Réunion Sync (16h30)",
+      "description": "Mettre à jour l'événement Google Calendar pour 16h30 et avertir les participants.",
+      "status": "pending_approval",
+      "createdAt": "2026-09-13T15:02:38.824Z",
+      "payload": {
+        "summary": "Point Sync Équipe",
+        "eventStart": "2026-09-13T16:02:38.824Z",
+        "eventEnd": "2026-09-13T17:02:38.824Z"
+      }
+    },
+    {
       "id": "act_1788474305980_idrqj",
       "type": "send_email",
       "channel": "gmail",
@@ -114,6 +142,58 @@
     }
   ],
   "briefings": [
+    {
+      "id": "rep_1789311758824",
+      "generatedAt": "2026-09-13T15:02:38.824Z",
+      "period": "instant",
+      "totalMessagesAnalyzed": 3,
+      "criticalPoints": [
+        "3 message(s) analysé(s) : Avenant juridique Grand Compte prioritaire.",
+        "Sprint Tech validé : mise en production confirmée sans régression."
+      ],
+      "decisionsTaken": [
+        "Point d'avancement hebdomadaire décalé de 15h00 à 16h30 à la demande de l'équipe produit."
+      ],
+      "pendingTasks": [
+        {
+          "title": "Signer l'avenant juridique",
+          "description": "Reçu par email du cabinet Lamy",
+          "dateTime": "2026-09-14T15:02:38.823Z",
+          "isImplicit": false
+        }
+      ],
+      "suggestedActions": [
+        {
+          "id": "act_1789311758824_0ewen",
+          "type": "schedule_event",
+          "channel": "gmail",
+          "title": "Mise à jour Réunion Sync (16h30)",
+          "description": "Mettre à jour l'événement Google Calendar pour 16h30 et avertir les participants.",
+          "status": "pending_approval",
+          "createdAt": "2026-09-13T15:02:38.824Z",
+          "payload": {
+            "summary": "Point Sync Équipe",
+            "eventStart": "2026-09-13T16:02:38.824Z",
+            "eventEnd": "2026-09-13T17:02:38.824Z"
+          }
+        },
+        {
+          "id": "act_1789311758824_86bg1",
+          "type": "send_email",
+          "channel": "gmail",
+          "title": "Envoyer confirmation de signature au Cabinet Lamy",
+          "description": "Préparer l'email confirmant que l'avenant sera retourné signé aujourd'hui.",
+          "status": "pending_approval",
+          "createdAt": "2026-09-13T15:02:38.824Z",
+          "payload": {
+            "to": "cabinet@lamy-associes.com",
+            "subject": "RE: Avenant Contrat SaaS - Signature en cours",
+            "body": "Bonjour Maître,\n\nBien reçu. L'avenant est actuellement en cours de signature électronique et vous sera renvoyé avant 18h.\n\nBien cordialement,\nThomas"
+          }
+        }
+      ],
+      "summaryMarkdown": "☀️ *Briefing Matinal OmniMind*\n\n*Urgences & Priorités :*\n• Avenant juridique à valider avant 18h (Cabinet Lamy).\n• Point sync décalé à 16h30 (WhatsApp validé).\n\n*Actions préparées prêtes à valider ci-dessous :*"
+    },
     {
       "id": "rep_1788474305980",
       "generatedAt": "2026-09-03T22:25:05.980Z",
@@ -334,7 +414,7 @@
     }
   ],
   "settings": {
-    "userName": "khawan",
+    "userName": "Khawan",
     "userEmail": "willis.palmot@gmail.com",
     "userPhone": "+33612345678",
     "preferredBriefingChannel": "telegram",
@@ -360,13 +440,28 @@
     {
       "id": "usr_1788470885519_u1ha",
       "email": "willis.palmot@gmail.com",
-      "name": "khawan",
+      "name": "Khawan",
       "verified": true,
-      "tokenExpiresAt": "2026-09-05T23:04:58.498Z",
+      "tokenExpiresAt": "2026-09-13T15:16:57.030Z",
       "createdAt": "2026-09-03T21:28:05.519Z",
-      "lastLoginAt": "2026-09-03T22:25:01.079Z",
-      "verificationToken": "253f172df3c041d38b135110f1e9875d2f99494ef2543a1b",
-      "verificationCode": "559829"
+      "lastLoginAt": "2026-09-13T15:02:02.941Z"
     }
-  ]
+  ],
+  "memories": [
+    {
+      "id": "mem_init_1",
+      "userId": "usr_dev_admin",
+      "category": "constraint",
+      "fact": "Pas de rendez-vous ni de réunions client le vendredi après 16h.",
+      "createdAt": "2026-09-13T15:01:57.024Z"
+    },
+    {
+      "id": "mem_init_2",
+      "userId": "usr_dev_admin",
+      "category": "vip_relation",
+      "fact": "Cabinet Lamy est le conseil juridique prioritaire. Traiter leurs demandes sous 4h.",
+      "createdAt": "2026-09-13T15:01:57.024Z"
+    }
+  ],
+  "userSettings": {}
 }

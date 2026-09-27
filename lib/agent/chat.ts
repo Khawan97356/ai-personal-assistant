@@ -35,11 +35,34 @@ export async function processVoiceAgentConversation(
   const groqKey = process.env.GROQ_API_KEY;
   const openAiKey = process.env.OPENAI_API_KEY;
 
+  // Recherche sémantique vectorielle (RAG) dans les souvenirs et fragments de messages
+  let relevantMemories: string[] = memories.map((m) => `[${m.category}] ${m.fact}`);
+  let ragContextChunks: Array<{ source: string; content: string; similarity?: number }> = [];
+
+  try {
+    const { searchSimilarChunks } = await import("@/lib/agent/vectorMemory");
+    const [semanticMems, chunks] = await Promise.all([
+      db.memories.searchSemantic(userSpeech, userId, 5),
+      searchSimilarChunks(userId || "usr_dev_admin", userSpeech, 3),
+    ]);
+    if (semanticMems.length > 0) {
+      relevantMemories = semanticMems.map((m) => `[${m.category}] ${m.fact}`);
+    }
+    ragContextChunks = chunks.map((c) => ({
+      source: c.source,
+      content: c.content,
+      similarity: c.similarity,
+    }));
+  } catch (err) {
+    console.debug("[Chat] Fallback RAG:", err);
+  }
+
   // Contexte complet en temps réel transmis à l'IA
   const systemContext = {
     userId,
     user: settings.userName,
-    longTermMemories: memories.map((m) => `[${m.category}] ${m.fact}`),
+    longTermMemories: relevantMemories,
+    contextualRAGChunks: ragContextChunks,
     pendingActions: pendingActions.map((a) => ({
       id: a.id,
       title: a.title,
@@ -160,7 +183,7 @@ async function callGemini(
   userSpeech: string
 ) {
   const cleanKey = apiKey.replace(/^["']|["']$/g, "").trim();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${cleanKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`;
 
   const conversationLines = history.slice(-6).map((h) => `${h.role === "user" ? "Utilisateur" : "OmniMind"}: ${h.content}`).join("\n");
   const fullPrompt = `${systemPrompt}\n\n--- HISTORIQUE DU DIALOGUE RÉCENT ---\n${conversationLines}\n\nUtilisateur (message oral actuel) : "${userSpeech}"`;
