@@ -1,6 +1,8 @@
 import { db } from "@/lib/db/store";
 import { OmniMindAgent } from "@/lib/agent/core";
 import { AGENT_TOOLS, executeAgentTool } from "@/lib/agent/tools";
+import { getMemoryEngine } from "@/lib/agent/memoryEngine";
+import type { RecalledMemory } from "./brain/types";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -35,26 +37,38 @@ export async function processVoiceAgentConversation(
   const groqKey = process.env.GROQ_API_KEY;
   const openAiKey = process.env.OPENAI_API_KEY;
 
-  // Recherche sémantique vectorielle (RAG) dans les souvenirs et fragments de messages
+  // MOTEUR DE MÉMOIRE UNIFIÉ : rappel hybride (souvenirs + chunks RAG)
+  const memoryEngine = getMemoryEngine(userId || "usr_dev_admin");
   let relevantMemories: string[] = memories.map((m) => `[${m.category}] ${m.fact}`);
   let ragContextChunks: Array<{ source: string; content: string; similarity?: number }> = [];
 
   try {
-    const { searchSimilarChunks } = await import("@/lib/agent/vectorMemory");
-    const [semanticMems, chunks] = await Promise.all([
-      db.memories.searchSemantic(userSpeech, userId, 5),
-      searchSimilarChunks(userId || "usr_dev_admin", userSpeech, 3),
-    ]);
-    if (semanticMems.length > 0) {
-      relevantMemories = semanticMems.map((m) => `[${m.category}] ${m.fact}`);
+    const recalled: RecalledMemory[] = await memoryEngine.ask(userSpeech, {
+      topK: 8,
+      minSimilarity: 0.68,
+      includeChunks: true,
+      hybridAlpha: 0.82,
+    });
+
+    if (recalled.length > 0) {
+      relevantMemories = recalled
+        .filter((r) => !(r.metadata && r.metadata.category === "chunk"))
+        .map((r) => {
+          const tag = r.metadata?.category ? `[${String(r.metadata.category)}]` : `[${r.type}]`;
+          const score = `(pertinence ${Math.round(r.similarity * 100)}%)`;
+          return `${tag} ${r.content} ${score}`;
+        });
+
+      ragContextChunks = recalled
+        .filter((r) => r.metadata && r.metadata.category === "chunk")
+        .map((r) => ({
+          source: String(r.metadata?.source || "unknown"),
+          content: r.content.replace(/^\[source:[^\]]+\]\s*/, ""),
+          similarity: r.similarity,
+        }));
     }
-    ragContextChunks = chunks.map((c) => ({
-      source: c.source,
-      content: c.content,
-      similarity: c.similarity,
-    }));
   } catch (err) {
-    console.debug("[Chat] Fallback RAG:", err);
+    console.debug("[Chat] Fallback RAG (MemoryEngine indisponible):", err);
   }
 
   // Contexte complet en temps réel transmis à l'IA
@@ -117,7 +131,7 @@ Réponds UNIQUEMENT en JSON valide avec le schéma :
   if (geminiKey) {
     try {
       const parsed = await callGemini(geminiKey, agentPrompt, history, userSpeech);
-      return await finalizeAgentResponse(parsed);
+      return finishAndLearn(await finalizeAgentResponse(parsed), userSpeech, memoryEngine);
     } catch (err) {
       console.warn("Erreur appel Gemini API:", err);
     }
@@ -127,7 +141,7 @@ Réponds UNIQUEMENT en JSON valide avec le schéma :
   if (groqKey) {
     try {
       const parsed = await callGroq(groqKey, agentPrompt, history, userSpeech);
-      return await finalizeAgentResponse(parsed);
+      return finishAndLearn(await finalizeAgentResponse(parsed), userSpeech, memoryEngine);
     } catch (err) {
       console.warn("Erreur appel Groq API:", err);
     }
@@ -137,14 +151,49 @@ Réponds UNIQUEMENT en JSON valide avec le schéma :
   if (openAiKey) {
     try {
       const parsed = await callOpenAI(openAiKey, agentPrompt, history, userSpeech, userId);
-      return await finalizeAgentResponse(parsed);
+      return finishAndLearn(await finalizeAgentResponse(parsed), userSpeech, memoryEngine);
     } catch (err) {
       console.warn("Erreur appel OpenAI API:", err);
     }
   }
 
   // 4. MOTEUR DE RAISONNEMENT CONTEXTUEL DYNAMIQUE (Avancé & adaptatif, sans clé API)
-  return runDeepContextualReasoning(userSpeech, history, systemContext);
+  const finalResult = runDeepContextualReasoning(userSpeech, history, systemContext);
+
+  // 5. APPRENTISSAGE ASYNCHRONE : mémorise l'échange (sans bloquer la réponse)
+  Promise.resolve()
+    .then(async () => {
+      try {
+        await memoryEngine.learnFromConversation(userSpeech, finalResult.spokenResponse, {
+          metadata: { channel: "voice_chat" },
+        });
+      } catch (err) {
+        console.debug("[Chat] Apprentissage mémoire ignoré:", err);
+      }
+    })
+    .catch(() => {});
+
+  return finalResult;
+}
+
+// Fonction d'aide : finalise la réponse + déclenche apprentissage mémoire
+async function finishAndLearn(
+  result: AgentReasoningResult,
+  userSpeech: string,
+  memoryEngine: ReturnType<typeof getMemoryEngine>
+): Promise<AgentReasoningResult> {
+  Promise.resolve()
+    .then(async () => {
+      try {
+        await memoryEngine.learnFromConversation(userSpeech, result.spokenResponse, {
+          metadata: { channel: "llm_chat" },
+        });
+      } catch (err) {
+        console.debug("[Chat] Apprentissage mémoire (LLM) ignoré:", err);
+      }
+    })
+    .catch(() => {});
+  return result;
 }
 
 // Fonction de finalisation commune pour les réponses issues d'un LLM

@@ -17,7 +17,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await processVoiceAgentConversation(message, history || []);
+    const result = await processVoiceAgentConversation(
+      message,
+      history || [],
+      auth.session.user?.id
+    );
 
     return NextResponse.json({
       success: true,

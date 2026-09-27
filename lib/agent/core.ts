@@ -12,6 +12,7 @@ import { outlookChannel } from "./channels/outlook";
 import { discordChannel } from "./channels/discord";
 
 import { db } from "@/lib/db/store";
+import { getMemoryEngine } from "./memoryEngine";
 
 // In-memory action store as fallback & fast cache
 export const globalActionStore = new Map<string, ActionProposal>();
@@ -41,6 +42,12 @@ export class OmniMindAgent {
     messages: IncomingMessage[],
     period: "morning" | "evening" | "instant" = "morning"
   ): Promise<SummaryReport> {
+    // 1. INGESTION MÉMOIRE : indexe chaque message pour le RAG + extrait faits structurés
+    const memoryEngine = getMemoryEngine(this.preferences.userEmail || "usr_dev_admin");
+    await Promise.allSettled(
+      messages.map((m) => memoryEngine.ingestIncomingMessage(m))
+    );
+
     const formattedMessages = messages
       .map(
         (m, idx) =>
