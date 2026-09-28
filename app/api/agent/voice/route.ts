@@ -106,7 +106,8 @@ export async function POST(req: NextRequest) {
           hash: result.hash,
         }))
       );
-      return new NextResponse(Buffer.isBuffer(result.audio) ? result.audio : Buffer.alloc(0), { status: 200, headers });
+      const audioBuffer = Buffer.isBuffer(result.audio) ? result.audio : Buffer.alloc(0);
+      return new NextResponse(new Uint8Array(audioBuffer), { status: 200, headers });
     }
     return NextResponse.json({ error: "Action inconnue. Utilisez speak | transcribe | processUserSay | prepare." }, { status: 400 });
   } catch (err) {

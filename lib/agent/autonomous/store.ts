@@ -24,7 +24,7 @@ function defaultAction(input: {
     ? exec.estimateRisk({ actionKey } as never)
     : "medium";
   const trigger: ActionTrigger = input.trigger
-    ? ({ kind: "scheduled", cron: "*/15 * * * *", ...input.trigger } as ActionTrigger)
+    ? { cron: "*/15 * * * *", ...input.trigger }
     : { kind: "scheduled", cron: "*/15 * * * *" };
   const id = makeId("aut");
   return {

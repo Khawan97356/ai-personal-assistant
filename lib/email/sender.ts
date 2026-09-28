@@ -154,7 +154,7 @@ export async function sendVerificationEmail(
   console.log(`🔗 Lien Magique : ${magicLink}`);
   console.log(`======================================================\n`);
 
-  return {
+    return {
     success: true,
     method: "simulation",
     magicLink,
@@ -162,3 +162,37 @@ export async function sendVerificationEmail(
     message: `Email préparé pour ${toEmail}. Vous pouvez utiliser le code ${verificationCode} ou le lien magique.`,
   };
 }
+
+export async function sendEmail(opts: {
+  to: string;
+  subject: string;
+  text?: string;
+  html?: string;
+}): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.EMAIL_FROM || "OmniMind <onboarding@resend.dev>";
+  if (apiKey) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [opts.to],
+          subject: opts.subject,
+          text: opts.text || "",
+          html: opts.html || `<p>${opts.text || ""}</p>`,
+        }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+  console.log(`[SIMULATION EMAIL] Vers: ${opts.to} | Sujet: ${opts.subject}`);
+  return true;
+}
+

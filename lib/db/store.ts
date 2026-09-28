@@ -24,6 +24,7 @@ export interface UserRecord {
   verificationToken?: string;
   verificationCode?: string;
   tokenExpiresAt?: string;
+  codeAttempts?: number;
   createdAt: string;
   lastLoginAt?: string;
 }
@@ -307,6 +308,24 @@ class JsonDatabase {
       }
       return null;
     },
+    setStatus: (id: string, status: "connected" | "disconnected", userId?: string): ConnectedAccountRecord | null => {
+      const db = this.read();
+      if (userId) {
+        const hasUserAcc = db.accounts.some((a) => a.userId === userId && a.id === id);
+        if (!hasUserAcc) {
+          this.accounts.getAll(userId);
+        }
+      }
+      const account = db.accounts.find(
+        (a) => a.id === id && (!userId || a.userId === userId)
+      );
+      if (account) {
+        account.status = status;
+        this.write(db);
+        return account;
+      }
+      return null;
+    },
     updateIdentifier: (id: string, identifier: string, userId?: string): ConnectedAccountRecord | null => {
       const db = this.read();
       if (userId) {
@@ -447,6 +466,24 @@ class JsonDatabase {
           u.verificationCode === code.trim()
       );
     },
+    incrementCodeAttempts: (id: string): number => {
+      const db = this.read();
+      const user = db.users?.find((u) => u.id === id);
+      if (user) {
+        user.codeAttempts = (user.codeAttempts || 0) + 1;
+        this.write(db);
+        return user.codeAttempts;
+      }
+      return 0;
+    },
+    resetCodeAttempts: (id: string): void => {
+      const db = this.read();
+      const user = db.users?.find((u) => u.id === id);
+      if (user) {
+        user.codeAttempts = 0;
+        this.write(db);
+      }
+    },
     createOrUpdateVerification: (
       email: string,
       name: string,
@@ -464,6 +501,7 @@ class JsonDatabase {
         user.verificationToken = token;
         user.verificationCode = code;
         user.tokenExpiresAt = expiresAt;
+        user.codeAttempts = 0;
       } else {
         user = {
           id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -473,6 +511,7 @@ class JsonDatabase {
           verificationToken: token,
           verificationCode: code,
           tokenExpiresAt: expiresAt,
+          codeAttempts: 0,
           createdAt: new Date().toISOString(),
         };
         db.users.push(user);
@@ -488,6 +527,8 @@ class JsonDatabase {
         user.verified = true;
         user.verificationToken = undefined;
         user.verificationCode = undefined;
+        user.tokenExpiresAt = undefined;
+        user.codeAttempts = 0;
         user.lastLoginAt = new Date().toISOString();
 
         // Mettre à jour automatiquement le profil exécutif actif

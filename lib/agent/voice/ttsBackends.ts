@@ -19,12 +19,21 @@ export function hashText(text: string, opts: Record<string, unknown> = {}): stri
 
 export function mapMoodToTTSParams(
   mood: VoiceMood,
-  personaDefault: { rate?: number; pitch?: number } | undefined,
+  personaDefault:
+    | Partial<import("./types").VoicePersona>
+    | { rate?: number; pitch?: number; defaultRate?: number; defaultPitch?: number }
+    | undefined,
   override: { rate?: number; pitch?: number }
 ) {
+  const pRate =
+    (personaDefault as import("./types").VoicePersona)?.defaultRate ??
+    (personaDefault as { rate?: number })?.rate;
+  const pPitch =
+    (personaDefault as import("./types").VoicePersona)?.defaultPitch ??
+    (personaDefault as { pitch?: number })?.pitch;
   const base = {
-    rate: override.rate ?? personaDefault?.rate ?? 1.0,
-    pitch: override.pitch ?? personaDefault?.pitch ?? 1.02,
+    rate: override.rate ?? pRate ?? 1.0,
+    pitch: override.pitch ?? pPitch ?? 1.02,
   };
   switch (mood) {
     case "enthusiastic":

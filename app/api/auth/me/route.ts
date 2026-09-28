@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db/store";
+import { getAuthSession } from "@/lib/auth/session";
 
 export async function GET(req: NextRequest) {
   try {
-    const sessionId = req.cookies.get("omnimind_session")?.value;
+    const session = getAuthSession(req);
 
-    if (!sessionId) {
+    if (!session.user || !session.user.verified) {
       return NextResponse.json({ authenticated: false, user: null });
     }
 
-    const user = db.users.getById(sessionId);
-
-    if (!user || !user.verified) {
-      return NextResponse.json({ authenticated: false, user: null });
-    }
+    const { user } = session;
 
     return NextResponse.json({
       authenticated: true,

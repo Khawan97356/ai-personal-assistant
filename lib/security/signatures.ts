@@ -1,4 +1,10 @@
-import { createHmac, createHash, createSign, createVerify, generateKeyPairSync } from "node:crypto";
+import {
+  createHmac,
+  createHash,
+  sign as cryptoSign,
+  verify as cryptoVerify,
+  generateKeyPairSync,
+} from "node:crypto";
 
 export type SignatureAlgo = "HMAC_SHA256" | "HMAC_SHA384" | "ED25519";
 const DEFAULT_ALGO: SignatureAlgo = "HMAC_SHA256";
@@ -12,7 +18,11 @@ function getHmacKey(): string {
 let edCache: { publicKeyPem: string; privateKeyPem: string } | null = null;
 export function getEdKeypair(): { publicKeyPem: string; privateKeyPem: string } {
   if (edCache) return edCache;
-  edCache = generateKeyPairSync("ed25519", { publicKeyEncoding: { type: "spki", format: "pem" }, privateKeyEncoding: { type: "pkcs8", format: "pem" } });
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519", {
+    publicKeyEncoding: { type: "spki", format: "pem" },
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+  });
+  edCache = { publicKeyPem: publicKey, privateKeyPem: privateKey };
   return edCache;
 }
 
@@ -35,8 +45,8 @@ export function signPayload(payload: unknown, options?: { algo?: SignatureAlgo; 
   }
   if (algo === "ED25519") {
     const { privateKeyPem } = getEdKeypair();
-    const s = createSign(null); s.update(message);
-    return { signatureKind: algo, signature: s.sign(privateKeyPem, "base64"), signatory: options?.signatory ?? "omnimind-ed25519" };
+    const sig = cryptoSign(null, Buffer.from(message), privateKeyPem).toString("base64");
+    return { signatureKind: algo, signature: sig, signatory: options?.signatory ?? "omnimind-ed25519" };
   }
   throw new Error(`algo signature invalide: ${algo}`);
 }
@@ -50,8 +60,7 @@ export function verifySignature(payload: unknown, sig: string, algo: SignatureAl
     }
     if (algo === "ED25519") {
       const pub = publicKeyPem ?? getEdKeypair().publicKeyPem;
-      const v = createVerify(null); v.update(message);
-      return v.verify(pub, sig, "base64");
+      return cryptoVerify(null, Buffer.from(message), pub, Buffer.from(sig, "base64"));
     }
     return false;
   } catch { return false; }

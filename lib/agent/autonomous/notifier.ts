@@ -54,19 +54,20 @@ export class AutonomousNotifier implements Notifier {
   }
 
   private async sendTG(text: string) {
-    if (telegramChannel && typeof (telegramChannel as { send?: (t: string) => Promise<unknown> }).send === "function") {
-      await (telegramChannel as { send: (t: string) => Promise<unknown> }).send(text);
+    if (telegramChannel && typeof telegramChannel.sendMessage === "function") {
+      const chatId = process.env.TELEGRAM_CHAT_ID;
+      if (chatId) await telegramChannel.sendMessage(chatId, text);
     }
   }
   private async sendWA(text: string) {
-    if (whatsAppChannel && typeof (whatsAppChannel as { send?: (t: string) => Promise<unknown> }).send === "function") {
-      await (whatsAppChannel as { send: (t: string) => Promise<unknown> }).send(text);
+    if (whatsAppChannel && typeof whatsAppChannel.sendMessage === "function") {
+      const phone = process.env.WHATSAPP_USER_PHONE;
+      if (phone) await whatsAppChannel.sendMessage(phone, text);
     }
   }
   private async sendDC(p: { title: string; body: string }) {
-    const msg = `**${p.title}**\n${p.body}`;
-    if (discordChannel && typeof (discordChannel as { send?: (t: string) => Promise<unknown> }).send === "function") {
-      await (discordChannel as { send: (t: string) => Promise<unknown> }).send(msg);
+    if (discordChannel && typeof discordChannel.sendAlert === "function") {
+      await discordChannel.sendAlert(p.title, p.body);
     }
   }
   private async sendMail(userId: string, p: { title: string; body: string }) {

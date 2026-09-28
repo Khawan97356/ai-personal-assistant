@@ -3,6 +3,7 @@ import { IncomingMessage } from "@/lib/agent/types";
 /**
  * Connecteur Gmail & Google Calendar pour OmniMind.
  * Permet d'extraire les emails non lus, de préparer des brouillons et de planifier des réunions.
+ * Supporte les tokens statiques ainsi que le renouvellement automatique OAuth2 (refresh_token).
  */
 
 export interface GoogleEventPayload {
@@ -15,20 +16,68 @@ export interface GoogleEventPayload {
 
 export class GmailAndCalendarChannel {
   private accessToken?: string;
+  private tokenExpiresAt: number = 0;
 
   constructor(token?: string) {
     this.accessToken = token || process.env.GOOGLE_ACCESS_TOKEN;
   }
 
   public isConfigured(): boolean {
-    return Boolean(this.accessToken);
+    return Boolean(
+      this.accessToken ||
+      process.env.GOOGLE_ACCESS_TOKEN ||
+      (process.env.GOOGLE_REFRESH_TOKEN && process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+    );
+  }
+
+  /**
+   * Obtient un jeton d'accès valide avec rafraîchissement automatique via OAuth2
+   */
+  public async getValidAccessToken(): Promise<string | null> {
+    const now = Date.now();
+    if (this.accessToken && (!this.tokenExpiresAt || this.tokenExpiresAt > now + 120_000)) {
+      return this.accessToken;
+    }
+
+    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (refreshToken && clientId && clientSecret) {
+      try {
+        const res = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: refreshToken,
+            grant_type: "refresh_token",
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          this.accessToken = data.access_token;
+          this.tokenExpiresAt = now + (data.expires_in || 3600) * 1000;
+          return this.accessToken || null;
+        } else {
+          console.warn("[GmailChannel] Échec du rafraîchissement OAuth Google:", await res.text());
+        }
+      } catch (err) {
+        console.error("[GmailChannel] Erreur lors du renouvellement du token Google:", err);
+      }
+    }
+
+    return this.accessToken || process.env.GOOGLE_ACCESS_TOKEN || null;
   }
 
   /**
    * Crée un brouillon d'email dans la boîte Gmail de l'utilisateur
    */
   public async createDraft(to: string, subject: string, bodyText: string): Promise<{ draftId: string; success: boolean }> {
-    if (!this.isConfigured()) {
+    const token = await this.getValidAccessToken();
+    if (!token) {
       console.log(`[SIMULATION GMAIL] Brouillon créé pour ${to} | Sujet: ${subject}`);
       return { draftId: `sim_draft_${Date.now()}`, success: true };
     }
@@ -51,7 +100,7 @@ export class GmailAndCalendarChannel {
       const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -71,7 +120,8 @@ export class GmailAndCalendarChannel {
    * Crée un événement dans Google Calendar
    */
   public async scheduleCalendarEvent(event: GoogleEventPayload): Promise<{ eventId: string; success: boolean }> {
-    if (!this.isConfigured()) {
+    const token = await this.getValidAccessToken();
+    if (!token) {
       console.log(`[SIMULATION GOOGLE CALENDAR] Événement créé : ${event.summary} (${event.startTime} -> ${event.endTime})`);
       return { eventId: `sim_event_${Date.now()}`, success: true };
     }
@@ -80,7 +130,7 @@ export class GmailAndCalendarChannel {
       const res = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -104,7 +154,8 @@ export class GmailAndCalendarChannel {
    * Récupère les emails non lus de la boîte Gmail
    */
   public async fetchUnreadMessages(maxResults: number = 10): Promise<IncomingMessage[]> {
-    if (!this.isConfigured()) {
+    const token = await this.getValidAccessToken();
+    if (!token) {
       return [];
     }
 
@@ -112,7 +163,7 @@ export class GmailAndCalendarChannel {
       const listRes = await fetch(
         `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread&maxResults=${maxResults}`,
         {
-          headers: { Authorization: `Bearer ${this.accessToken}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
       const listData = await listRes.json();
@@ -126,7 +177,7 @@ export class GmailAndCalendarChannel {
           const msgRes = await fetch(
             `https://gmail.googleapis.com/gmail/v1/users/me/messages/${item.id}?format=full`,
             {
-              headers: { Authorization: `Bearer ${this.accessToken}` },
+              headers: { Authorization: `Bearer ${token}` },
             }
           );
           const msgData = await msgRes.json();

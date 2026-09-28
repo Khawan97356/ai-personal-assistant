@@ -103,7 +103,7 @@ export class AuditLogger {
     for (const e of entries) {
       if (e.previousHash && previousValid && e.previousHash !== previousValid) failures.push({ id: e.id, reason: `chaînage cassé (expected ${previousValid.slice(0,12)} got ${e.previousHash.slice(0,12)})` });
       const core = { id: e.id, userId: e.userId ?? null, actorKind: e.actorKind, actorId: e.actorId ?? null, event: e.event, category: e.category, level: e.level, summary: e.summary, resourceType: e.resourceType ?? null, resourceId: e.resourceId ?? null, diffBefore: e.diffBefore ?? null, diffAfter: e.diffAfter ?? null, metadata: e.metadata ?? null, ipAddress: e.ipAddress ?? null, userAgent: e.userAgent ?? null, country: e.country ?? null, requestId: e.requestId ?? null, sessionId: e.sessionId ?? null, createdAt: e.createdAt };
-      const recomputed = chainAuditLog({ entryHash: e.previousHash ?? null }, core).entryHash;
+      const recomputed: string = chainAuditLog({ entryHash: e.previousHash ?? null }, core).entryHash;
       if (recomputed !== e.entryHash) failures.push({ id: e.id, reason: "entryHash mismatch" });
       if (e.signature && e.signatureKind) {
         const ok = verifySignature(e, e.signature, e.signatureKind as SignatureAlgo);

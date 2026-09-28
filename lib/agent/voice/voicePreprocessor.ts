@@ -114,8 +114,8 @@ export function preprocessForSpeech(
   };
   const baseRate = overrideRate ?? persona?.defaultRate ?? 1.0;
   const basePitch = overridePitch ?? persona?.defaultPitch ?? 1.02;
-  const finalRate = Number((baseRate + rand(-jitterRate, jitterRate)).toFixed(3);
-  const finalPitch = Number((basePitch + rand(-jitterPitch, jitterPitch)).toFixed(3);
+  const finalRate = Number((baseRate + rand(-jitterRate, jitterRate)).toFixed(3));
+  const finalPitch = Number((basePitch + rand(-jitterPitch, jitterPitch)).toFixed(3));
   const withHesitations = injectHesitations(cleaned, persona?.naturalness?.hesitationFrequency ?? 0.12, seed);
   const withBreaths = injectBreathPauses(withHesitations, persona?.naturalness?.pauseDensity ?? 0.35);
   const breathGroups = splitIntoBreathGroups(withBreaths);

@@ -35,7 +35,7 @@ class BriefingMorningExecutor implements ActionExecutor {
     const memory = getMemoryEngine(ctx.userId);
     try {
       const [priorities, deadlines, recents] = await Promise.all([
-        memory?.ask?.((action?: string) => `priorités ${action || "du jour"} à faire top 3 objectifs`, { topK: 5, minSimilarity: 0.62, types: ["task","fact"] }),
+        memory?.ask?.("priorités du jour à faire top 3 objectifs", { topK: 5, minSimilarity: 0.62, types: ["task","fact"] }),
         memory?.ask?.("échéances aujourd'hui deadline échéance livrable", { topK: 5, minSimilarity: 0.62, types: ["task","fact"] }),
         memory?.getRecent?.(12) ?? [],
       ]);
@@ -78,7 +78,7 @@ class MemoryConsolidateExecutor implements ActionExecutor {
     const engine = getMemoryEngine(ctx.userId);
     if (engine && typeof engine.consolidate === "function") {
       const report = await engine.consolidate();
-      return { output: report ?? { done: true }, notify: (report && typeof report === "object" && (report as Record<string, number>).mergedCount ? (report as Record<string, number>).mergedCount > 0 : false) };
+      return { output: report ?? { done: true }, notify: (report && typeof report === "object" && (report as unknown as Record<string, number>).mergedCount ? (report as unknown as Record<string, number>).mergedCount > 0 : false) };
     }
     return { output: { skipped: "no_memory_engine" }, notify: false };
   }

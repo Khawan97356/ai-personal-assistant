@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
+import { clearSessionCookie } from "@/lib/auth/session";
 
 export async function POST() {
   const res = NextResponse.json({ success: true, message: "Déconnexion réussie." });
-  res.cookies.set("omnimind_session", "", {
-    httpOnly: true,
-    maxAge: 0,
-    path: "/",
-  });
+  clearSessionCookie(res);
   return res;
 }

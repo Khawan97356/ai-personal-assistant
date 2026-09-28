@@ -1,5 +1,5 @@
 import type {
-  AutonomousAction, AutonomousPersistence, AutonomousExecutorFacade,
+  AutonomousAction,
   AutonomousRun, SchedulerTickResult,
 } from "./types";
 
@@ -12,7 +12,7 @@ const CRON_TZ_OFFSET =
 // Cron parser minimaliste 5-champs avec dépendance optionnelle node:cron-parser
 async function cronNextAtSafe(expr: string, from: Date = new Date()) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { parse } = require("node:cron-parser");
     const p = parse(expr, { currentDate: from });
     const d = new Date(p.next().toDate().getTime() + CRON_TZ_OFFSET * 3600_000);
@@ -124,7 +124,7 @@ export class AutonomousScheduler {
   }
 
   async fireEvent(eventName: string, payload?: Record<string, unknown>): Promise<string[]> {
-    const candidates = (await this.deps.persistence.listEnabledActions()).filter((a) => {
+    const candidates = (await this.deps.persistence.listEnabledActions()).filter((a: AutonomousAction) => {
       if (a.trigger.kind === "event") return a.trigger.eventName === eventName;
       if (a.trigger.kind === "memory") return !!payload;
       return false;
