@@ -21,14 +21,31 @@ model User {
   createdAt         DateTime           @default(now())
   lastLoginAt       DateTime?
 
+  role              String             @default("user") // user, manager, admin, owner
+  voicePersona      String?
+  autonomyLevel     String             @default("semi")
+  language          String             @default("fr-FR")
+  timezone          String?            @default("Europe/Paris")
+  hashedDataKey     String?
+  securityFlags     Json?
+
   actions           ActionProposal[]
   briefings         SummaryReport[]
   accounts          ConnectedAccount[]
   preferences       UserPreferences?
   memories          UserMemory[]
   chunks            MemoryChunk[]
+  profile           UserProfile?
+  pendingTasks      PendingTask[]
+  autonomousActions AutonomousAction[]
+  approvals         AutonomousApproval[]
+  notifications     AppNotification[]
+  auditLogs         AuditLogEntry[]
+  permissions       PermissionGrant[]
+  vaultItems        SensitiveDataVaultItem[]
 
   @@index([email])
+  @@index([role])
 }
 
 model ActionProposal {
@@ -100,29 +117,269 @@ model UserPreferences {
 }
 
 model UserMemory {
-  id        String   @id @default(cuid())
-  userId    String
-  category  String   @default("preference") // preference, constraint, vip_relation, work_habit
-  fact      String
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  category     String   @default("preference")
+  fact         String
+  createdAt    DateTime @default(now())
 
-  embedding Unsupported("vector(1536)")?
+  memoryType   String?
+  sensitivity  String?  @default("normal")
+  provenance   String?
+  dedupeHash   String?
+  expiresAt    DateTime?
+  deletedAt    DateTime?
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  embedding    Unsupported("vector(1536)")?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, category])
+  @@index([userId, memoryType])
+  @@index([userId, sensitivity])
+  @@index([userId, deletedAt])
 }
 
 model MemoryChunk {
-  id        String   @id @default(cuid())
-  userId    String
-  source    String   // gmail, whatsapp, telegram, outlook, discord
-  sourceRef String?  // id du message/thread d'origine, pour contextualisation
-  content   String   @db.Text
-  embedding Unsupported("vector(1536)")
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  source       String
+  sourceRef    String?
+  content      String   @db.Text
+  createdAt    DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sensitivity  String?  @default("normal")
+  documentId   String?
+  chunkIndex   Int?
+  mime         String?
+  deletedAt    DateTime?
+
+  embedding    Unsupported("vector(1536)")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, source])
+  @@index([userId, documentId, chunkIndex])
 }
+
+model UserProfile {
+  userId                     String   @id
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title                    String?
+  firstName                String?
+  lastName                 String?
+  profession               String?
+  company                  String?
+  defaultVoicePersona      String   @default("aria")
+  autonomyLevel            String   @default("semi")
+  defaultNotificationChannel String @default("app")
+  quietHoursStart          String?
+  quietHoursEnd            String?
+  weeklyReviewDay         String   @default("FRIDAY")
+  weeklyReviewHour        String   @default("18:00")
+  focusAreas               Json?
+  okrs                     Json?
+  updatedAt                DateTime @updatedAt
+  createdAt                DateTime @default(now())
+  @@index([defaultVoicePersona])
+}
+
+model PendingTask {
+  id                       String   @id @default(cuid())
+  userId                   String
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title                    String
+  description              String?  @db.Text
+  source                   String
+  sourceRef                String?
+  kind                     String
+  priority                 Int      @default(2)
+  dueAt                    DateTime?
+  remindAt                 DateTime?
+  snoozedUntil             DateTime?
+  status                   String   @default("pending")
+  linkedProposalId        String?
+  linkedAutonomousRunId     String?
+  linkedMemoryId            String?
+  payload                  Json?
+  channels                 Json?
+  assignedTo               String?
+  metadata                 Json?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  completedAt             DateTime?
+  @@index([userId, status, dueAt])
+  @@index([userId, priority])
+  @@index([userId, source, sourceRef])
+}
+
+model AutonomousAction {
+  id                       String   @id
+  userId                   String
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actionKey                String
+  name                     String
+  description              String?  @db.Text
+  triggerKind              String
+  triggerCron              String?
+  triggerEvent             String?
+  trigger                  Json
+  autonomyLevel            String
+  risk                     String
+  params                   Json
+  status                   String   @default("scheduled")
+  enabled                  Boolean  @default(true)
+  runCount                 Int      @default(0)
+  lastRunAt                DateTime?
+  nextRunAt                DateTime?
+  signatureKind            String?
+  signature                String?
+  signatory                String?
+  tags                     Json?
+  transient                Boolean? @default(false)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  runs                     AutonomousRun[]
+  approvals                AutonomousApproval[]
+  @@index([userId, status])
+  @@index([userId, nextRunAt])
+  @@index([userId, triggerKind])
+  @@index([userId, enabled])
+}
+
+model AutonomousRun {
+  id                       String   @id
+  actionId                 String
+  action                   AutonomousAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  status                   String
+  startedAt              DateTime
+  endedAt                  DateTime?
+  durationMs               Int?
+  inputSnapshot            Json?
+  output                   Json?
+  errorMessage          String?  @db.Text
+  errorStack              String?  @db.Text
+  notifiedVia              Json?
+  signatureKind            String?
+  signature                String?
+  metrics                  Json?
+  taskIdCreated          String?
+  @@index([actionId, startedAt])
+  @@index([status])
+}
+
+model AutonomousApproval {
+  id                       String   @id @default(cuid())
+  actionId                 String
+  action                   AutonomousAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  userId                   String
+  approverUser             User     @relation(fields: [userId], references: [id])
+  runId                    String?
+  kind                     String
+  approved                 Boolean?
+  reason                   String?  @db.Text
+  requestedAt           DateTime @default(now())
+  decidedAt                DateTime?
+  deadline                 DateTime?
+  signatureKind            String?
+  signature                String?
+  @@index([userId, kind, approved])
+  @@index([actionId])
+}
+
+model AppNotification {
+  id                       String   @id @default(cuid())
+  userId                   String
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category                 String
+  title                    String
+  body                     String   @db.Text
+  metadata                 Json?
+  channel                  String   @default("app")
+  relatedType              String?
+  relatedId                String?
+  readAt                   DateTime?
+  createdAt                DateTime @default(now())
+  @@index([userId, readAt, createdAt])
+  @@index([userId, category])
+}
+
+model SensitiveDataVaultItem {
+  id                       String   @id @default(cuid())
+  userId                   String
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category                 String
+  label                    String
+  encryptionAlgo           String   @default("AES-256-GCM")
+  keyDerivation          String   @default("HKDF-SHA256")
+  wrappedDataKey         String?
+  ciphertext               String   @db.Text
+  nonce                    String?
+  checksum                 String
+  rotationEpoch          Int      @default(1)
+  lastRotatedAt         DateTime @default(now())
+  allowedActionKeys     Json?
+  expiresAt                DateTime?
+  metadata                 Json?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  @@index([userId, category])
+  @@index([userId, label])
+}
+
+model PermissionGrant {
+  id                       String   @id @default(cuid())
+  userId                   String
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope                    String
+  resourceType            String?
+  resourceId             String?
+  effect                   String   @default("allow")
+  grantedAt                DateTime @default(now())
+  grantedBy                String?
+  expiresAt                DateTime?
+  conditions             Json?
+  @@index([userId, scope])
+  @@index([userId, resourceType, resourceId])
+  @@unique([userId, scope, resourceType, resourceId])
+}
+
+model AuditLogEntry {
+  id                       String   @id @default(cuid())
+  userId                   String?
+  actorKind               String
+  actorId                  String?
+  user                     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  event                    String
+  category              String
+  level                    String   @default("info")
+  summary                  String
+  resourceType           String?
+  resourceId               String?
+  diffBefore             Json?
+  diffAfter              Json?
+  metadata                 Json?
+  ipAddress                String?
+  userAgent              String?  @db.Text
+  country                  String?
+  requestId             String?
+  sessionId             String?
+  previousHash             String?
+  entryHash                String?
+  signatureKind        String?
+  signature                String?
+  createdAt                DateTime @default(now())
+  @@index([userId, createdAt])
+  @@index([category, event, createdAt])
+  @@index([actorKind, actorId, createdAt])
+  @@index([level, createdAt])
+  @@index([resourceType, resourceId])
+}
+
+// PostgreSQL HNSW pgvector indexes (application/raw SQL via migration:
+//   CREATE INDEX IF NOT EXISTS idx_usermemory_embedding_cos
+//     ON "UserMemory" USING hnsw (embedding vector_cosine_ops)
+//     WITH (m = 16, ef_construction = 64);
+//   CREATE INDEX IF NOT EXISTS idx_memorychunk_embedding_cos
+//     ON "MemoryChunk" USING hnsw (embedding vector_cosine_ops)
+//     WITH (m = 16, ef_construction = 64);
+//   CREATE INDEX IF NOT EXISTS idx_auditlog_createdat_brin
+//     ON "AuditLogEntry" USING brin ("createdAt");

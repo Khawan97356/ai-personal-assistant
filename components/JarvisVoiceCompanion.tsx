@@ -14,6 +14,7 @@ import {
   Bot,
 } from "lucide-react";
 import { speakText, stopSpeaking, playChime } from "@/lib/audio/speech";
+import type { VoicePersona, VoiceMood } from "@/lib/agent/voice/types";
 
 interface VoiceCompanionProps {
   isOpen: boolean;
@@ -64,9 +65,11 @@ export default function JarvisVoiceCompanion({
   const [currentResponse, setCurrentResponse] = useState<string>(
     `Bonjour ${userName} ! Je suis connecté à tes flux. Parle-moi ou pose-moi une question.`
   );
-  const [voiceMode, setVoiceMode] = useState<"robot" | "natural">("robot");
+  const [voiceMode, setVoiceMode] = useState<"robot" | "natural">("natural");
   const [isMuted, setIsMuted] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [personas, setPersonas] = useState<VoicePersona[]>([]);
+  const [activePersonaId, setActivePersonaId] = useState<string>("aria");
 
   const [history, setHistory] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
 
@@ -74,6 +77,23 @@ export default function JarvisVoiceCompanion({
   const isMountedRef = useRef(true);
   const latestTranscriptRef = useRef("");
   const sendToAgentRef = useRef<(text: string) => Promise<void>>(async () => {});
+
+  // Charger les personnalités vocales disponibles via VoiceEngine API
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/agent/voice?action=personas", { credentials: "include" });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (alive && j.personas?.length) {
+          setPersonas(j.personas);
+          if (j.current?.id) setActivePersonaId(j.current.id);
+        }
+      } catch { /* ignore en dev si l'API n'est pas encore prête */ }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   // Initialisation de la reconnaissance vocale Web Speech API
   useEffect(() => {
@@ -137,20 +157,45 @@ export default function JarvisVoiceCompanion({
     };
   }, []);
 
-  // Déclencher la réponse vocale
+  // Déclencher la réponse vocale — utilise VoiceEngine pour humaniser la phrase + mood + persona
   const speakResponse = useCallback(
-    (text: string) => {
+    async (text: string, overrideMood?: VoiceMood) => {
       if (isMuted) return;
+      stopSpeaking();
+      let preparedSpoken = text;
+      let synthParams: { rate?: number; pitch?: number } = {};
+      try {
+        const url = new URL("/api/agent/voice", window.location.origin);
+        url.searchParams.set("action", "client-hints");
+        url.searchParams.set("text", text.substring(0, 1500));
+        if (overrideMood) url.searchParams.set("mood", overrideMood);
+        url.searchParams.set("persona", activePersonaId);
+        const r = await fetch(url.toString(), { credentials: "include" });
+        if (r.ok) {
+          const j = await r.json();
+          if (j?.hints?.preprocessed?.spokenText) {
+            preparedSpoken = j.hints.preprocessed.spokenText;
+            synthParams = {
+              rate: j.hints.speechSynthesis?.rate,
+              pitch: j.hints.speechSynthesis?.pitch,
+            };
+          }
+        }
+      } catch { /* fallback: speak direct */ }
+
       setIsSpeaking(true);
-      speakText(text, {
+      speakText(preparedSpoken, {
         mode: voiceMode,
+        rate: synthParams.rate,
+        pitch: synthParams.pitch,
         onStart: () => setIsSpeaking(true),
         onEnd: () => setIsSpeaking(false),
         onError: () => setIsSpeaking(false),
       });
     },
-    [isMuted, voiceMode]
+    [isMuted, voiceMode, activePersonaId]
   );
+
 
   // Envoi du message au moteur de raisonnement de l'agent
   const sendToAgent = useCallback(
@@ -194,8 +239,9 @@ export default function JarvisVoiceCompanion({
             setTimeout(() => setActionNotice(null), 5000);
           }
 
-          // Lecture vocale de la réponse
-          speakResponse(data.spokenResponse);
+          // Lecture vocale de la réponse — mood inféré du contenu + persona active
+          const moodFromData: VoiceMood | undefined = data?.mood;
+          speakResponse(data.spokenResponse, moodFromData);
         } else {
           setCurrentResponse("Je n'ai pas pu analyser la demande. Réessayez s'il vous plaît.");
         }
@@ -268,6 +314,19 @@ export default function JarvisVoiceCompanion({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Sélecteur Personnalité Vocale VoiceEngine */}
+            {personas.length > 0 && (
+              <select
+                value={activePersonaId}
+                onChange={(e) => setActivePersonaId(e.target.value)}
+                className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-medium focus:outline-none focus:border-indigo-500/60 transition-colors cursor-pointer max-w-[160px]"
+                title="Personnalité vocale (Aria chaleureuse, Nova dynamique, Elias pédagogue, Juno neutre)"
+              >
+                {personas.map((p) => (
+                  <option key={p.id} value={p.id} className="bg-zinc-900">{p.name.split(" — ")[0]}</option>
+                ))}
+              </select>
+            )}
             {/* Toggle Mode Robotique / Naturel */}
             <button
               onClick={() => {
